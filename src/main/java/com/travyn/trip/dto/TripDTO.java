@@ -39,4 +39,8 @@ public class TripDTO {
     private int availableSpots;
     private Instant createdAt;
     private Instant updatedAt;
+
+    // Added for /my-trips — the current user's role and status in this trip
+    private String memberRole;
+    private String memberStatus;
 }

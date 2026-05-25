@@ -160,30 +160,31 @@ public class TripService {
 
     @Transactional(readOnly = true)
     public List<TripDTO> getMyTrips(UUID userId) {
-        // Get trips where user is creator
-        List<Trip> createdTrips = tripRepository.findByCreatorId(userId);
-
-        // Get trips where user is an approved member (but not creator)
+        // Get ALL memberships for this user (CREATOR, APPROVED, PENDING, etc.)
         List<TripMember> memberships = tripMemberRepository.findByUserId(userId);
-        List<UUID> memberTripIds = memberships.stream()
-                .filter(m -> m.getMemberStatus() == MemberStatus.APPROVED && m.getMemberRole() != MemberRole.CREATOR)
-                .map(TripMember::getTripId)
-                .toList();
 
-        List<Trip> memberTrips = memberTripIds.isEmpty()
-                ? List.of()
-                : tripRepository.findAllById(memberTripIds);
+        if (memberships.isEmpty()) {
+            return List.of();
+        }
 
-        // Combine and deduplicate
-        List<Trip> allTrips = new java.util.ArrayList<>(createdTrips);
-        memberTrips.stream()
-                .filter(t -> allTrips.stream().noneMatch(ct -> ct.getId().equals(t.getId())))
-                .forEach(allTrips::add);
+        List<UUID> tripIds = memberships.stream().map(TripMember::getTripId).toList();
+        List<Trip> trips = tripRepository.findAllById(tripIds);
 
-        return allTrips.stream()
+        return trips.stream()
                 .map(trip -> {
                     User creator = userRepository.findById(trip.getCreatorId()).orElse(null);
-                    return mapToTripDTO(trip, creator);
+                    TripDTO dto = mapToTripDTO(trip, creator);
+
+                    // Attach the current user's membership info
+                    memberships.stream()
+                            .filter(m -> m.getTripId().equals(trip.getId()))
+                            .findFirst()
+                            .ifPresent(m -> {
+                                dto.setMemberRole(m.getMemberRole().name());
+                                dto.setMemberStatus(m.getMemberStatus().name());
+                            });
+
+                    return dto;
                 })
                 .toList();
     }
