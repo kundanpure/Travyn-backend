@@ -1,0 +1,153 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-create-expenses-table
+      author: travyn
+      changes:
+        - createTable:
+            tableName: expenses
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: trip_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: paid_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: title
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: decimal(12,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: currency
+                  type: varchar(3)
+                  defaultValue: INR
+                  constraints:
+                    nullable: false
+              - column:
+                  name: category
+                  type: varchar(30)
+                  defaultValue: OTHER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: split_type
+                  type: varchar(20)
+                  defaultValue: EQUAL
+                  constraints:
+                    nullable: false
+              - column:
+                  name: date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: notes
+                  type: text
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: expenses
+            baseColumnNames: trip_id
+            constraintName: fk_expenses_trip
+            referencedTableName: trips
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: expenses
+            baseColumnNames: paid_by
+            constraintName: fk_expenses_paid_by
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_expenses_trip_id
+            tableName: expenses
+            columns:
+              - column:
+                  name: trip_id
+        - createIndex:
+            indexName: idx_expenses_paid_by
+            tableName: expenses
+            columns:
+              - column:
+                  name: paid_by
+
+  - changeSet:
+      id: 007-create-expense-splits-table
+      author: travyn
+      changes:
+        - createTable:
+            tableName: expense_splits
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: expense_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: decimal(12,2)
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: expense_splits
+            baseColumnNames: expense_id
+            constraintName: fk_expense_splits_expense
+            referencedTableName: expenses
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: expense_splits
+            baseColumnNames: user_id
+            constraintName: fk_expense_splits_user
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: expense_splits
+            columnNames: expense_id, user_id
+            constraintName: uk_expense_splits_expense_user
+        - createIndex:
+            indexName: idx_expense_splits_expense_id
+            tableName: expense_splits
+            columns:
+              - column:
+                  name: expense_id

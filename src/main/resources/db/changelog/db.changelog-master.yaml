@@ -9,4 +9,10 @@ databaseChangeLog:
       file: db/changelog/004-create-trips-table.yaml
   - include:
       file: db/changelog/005-create-trip-members-table.yaml
+  - include:
+      file: db/changelog/006-create-itinerary-tables.yaml
+  - include:
+      file: db/changelog/007-create-expense-tables.yaml
+  - include:
+      file: db/changelog/008-create-chat-messages-table.yaml
 

@@ -1,0 +1,64 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-create-chat-messages-table
+      author: travyn
+      changes:
+        - createTable:
+            tableName: chat_messages
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: trip_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sender_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: message_type
+                  type: varchar(20)
+                  defaultValue: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: chat_messages
+            baseColumnNames: trip_id
+            constraintName: fk_chat_messages_trip
+            referencedTableName: trips
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: chat_messages
+            baseColumnNames: sender_id
+            constraintName: fk_chat_messages_sender
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_chat_messages_trip_created
+            tableName: chat_messages
+            columns:
+              - column:
+                  name: trip_id
+              - column:
+                  name: created_at
