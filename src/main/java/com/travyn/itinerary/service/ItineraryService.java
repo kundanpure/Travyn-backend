@@ -66,7 +66,7 @@ public class ItineraryService {
         LocalDate tripStart = trip.getStartDate();
 
         return days.stream().map(day -> {
-            List<ItineraryItem> dayItems = itemsByDay.getOrDefault(day.getId(), List.of());
+            List<ItineraryItem> dayItems = itemsByDay.getOrDefault(day.getId(), new ArrayList<>());
             dayItems.sort(Comparator.comparingInt(ItineraryItem::getSortOrder));
 
             int dayNumber = (int) ChronoUnit.DAYS.between(tripStart, day.getDate()) + 1;
