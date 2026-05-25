@@ -1,0 +1,42 @@
+package com.travyn.trip.dto;
+
+import com.travyn.trip.entity.ApprovalMode;
+import com.travyn.trip.entity.TripStatus;
+import com.travyn.trip.entity.TripType;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class TripDTO {
+
+    private UUID id;
+    private UUID creatorId;
+    private String creatorName;
+    private String title;
+    private String destination;
+    private String description;
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private int maxSize;
+    private TripType tripType;
+    private TripStatus status;
+    private int trustScoreMin;
+    private boolean womenOnly;
+    private ApprovalMode approvalMode;
+    private String tags;
+    private String tripCode;
+    private String coverImageUrl;
+    private int memberCount;
+    private int availableSpots;
+    private Instant createdAt;
+    private Instant updatedAt;
+}

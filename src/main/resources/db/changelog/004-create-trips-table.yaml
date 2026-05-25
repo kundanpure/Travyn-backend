@@ -1,0 +1,132 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-create-trips-table
+      author: travyn
+      changes:
+        - createTable:
+            tableName: trips
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: creator_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: title
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: destination
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: text
+              - column:
+                  name: start_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: end_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: max_size
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: trip_type
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(30)
+                  defaultValue: OPEN
+                  constraints:
+                    nullable: false
+              - column:
+                  name: trust_score_min
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: women_only
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: approval_mode
+                  type: varchar(20)
+                  defaultValue: MANUAL
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tags
+                  type: varchar(500)
+              - column:
+                  name: trip_code
+                  type: varchar(8)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: cover_image_url
+                  type: varchar(500)
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: trips
+            baseColumnNames: creator_id
+            constraintName: fk_trips_creator
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_trips_status
+            tableName: trips
+            columns:
+              - column:
+                  name: status
+        - createIndex:
+            indexName: idx_trips_destination
+            tableName: trips
+            columns:
+              - column:
+                  name: destination
+        - createIndex:
+            indexName: idx_trips_start_date
+            tableName: trips
+            columns:
+              - column:
+                  name: start_date
+        - createIndex:
+            indexName: idx_trips_trip_code
+            tableName: trips
+            columns:
+              - column:
+                  name: trip_code

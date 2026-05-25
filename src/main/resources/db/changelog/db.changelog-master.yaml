@@ -3,3 +3,10 @@ databaseChangeLog:
       file: db/changelog/001-create-users-table.yaml
   - include:
       file: db/changelog/002-create-refresh-tokens-table.yaml
+  - include:
+      file: db/changelog/003-create-profiles-table.yaml
+  - include:
+      file: db/changelog/004-create-trips-table.yaml
+  - include:
+      file: db/changelog/005-create-trip-members-table.yaml
+

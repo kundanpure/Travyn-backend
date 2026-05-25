@@ -1,0 +1,69 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-profiles-table
+      author: travyn
+      changes:
+        - createTable:
+            tableName: profiles
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: bio
+                  type: varchar(500)
+              - column:
+                  name: travel_style
+                  type: varchar(30)
+              - column:
+                  name: budget_min
+                  type: int
+              - column:
+                  name: budget_max
+                  type: int
+              - column:
+                  name: sleep_schedule
+                  type: varchar(30)
+              - column:
+                  name: personality_scale
+                  type: int
+              - column:
+                  name: food_preference
+                  type: varchar(30)
+              - column:
+                  name: languages
+                  type: varchar(500)
+              - column:
+                  name: remote_worker
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: profile_photo_url
+                  type: varchar(500)
+              - column:
+                  name: cover_photo_url
+                  type: varchar(500)
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: profiles
+            baseColumnNames: id
+            constraintName: fk_profiles_user
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
