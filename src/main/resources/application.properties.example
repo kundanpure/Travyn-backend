@@ -1,0 +1,55 @@
+# ═══════════════════════════════════════════════════════════════
+#  Travyn Backend — Main Configuration
+#  Copy this to application.properties and fill in your secrets
+# ═══════════════════════════════════════════════════════════════
+
+server.port=8080
+
+spring.application.name=travyn-backend
+
+# ── Active Profile (default = neon) ──
+spring.profiles.active=neon
+
+# ── JPA Common ──
+spring.jpa.show-sql=false
+spring.jpa.properties.hibernate.format_sql=true
+spring.jackson.serialization.write-dates-as-timestamps=false
+spring.jackson.default-property-inclusion=non_null
+
+# ── Redis ──
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
+spring.data.redis.timeout=5000ms
+
+# ── Mail ──
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=YOUR_EMAIL@gmail.com
+spring.mail.password=YOUR_GMAIL_APP_PASSWORD
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+
+# ── JWT ──
+app.jwt.secret=YOUR_JWT_SECRET_MIN_256_BITS
+app.jwt.access-token-expiry-ms=900000
+app.jwt.refresh-token-expiry-ms=604800000
+
+# ── CORS ──
+app.cors.allowed-origins=http://localhost:3000,http://localhost:3001
+app.cors.allowed-methods=GET,POST,PUT,PATCH,DELETE,OPTIONS
+app.cors.allowed-headers=*
+app.cors.allow-credentials=true
+
+app.base-url=http://localhost:3000
+
+# ── Actuator ──
+management.endpoints.web.exposure.include=health,info
+management.endpoint.health.show-details=when-authorized
+
+# ── SpringDoc / Swagger ──
+springdoc.api-docs.path=/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html
+
+# ── Logging ──
+logging.level.com.travyn=DEBUG
+logging.level.org.springframework.security=INFO

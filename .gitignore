@@ -1,0 +1,45 @@
+# === Build ===
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# === IDE ===
+.idea/
+*.iml
+*.iws
+.project
+.classpath
+.settings/
+*.swp
+*.swo
+*~
+.vscode/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Maven ===
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# === Logs ===
+*.log
+logs/
+
+# === Secrets — NEVER commit real config files ===
+# Real properties contain DB passwords, SMTP creds, JWT secrets
+# Only .example files are committed (no secrets)
+*.env
+.env.*
+src/main/resources/application.properties
+src/main/resources/application-neon.properties
+src/main/resources/application-local.properties
