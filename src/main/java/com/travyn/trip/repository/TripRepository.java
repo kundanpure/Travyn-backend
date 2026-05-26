@@ -22,7 +22,7 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
     List<Trip> findByStatus(TripStatus status);
 
     @Query("SELECT t FROM Trip t WHERE t.status = :status " +
-            "AND (:destination IS NULL OR CAST(t.destination AS string) LIKE CONCAT('%', :destination, '%')) " +
+            "AND (:destination IS NULL OR LOWER(t.destination) LIKE LOWER(CONCAT('%', CAST(:destination AS string), '%'))) " +
             "AND (:tripType IS NULL OR t.tripType = :tripType) " +
             "AND (:fromDate IS NULL OR t.startDate >= :fromDate) " +
             "AND (:toDate IS NULL OR t.endDate <= :toDate)")
