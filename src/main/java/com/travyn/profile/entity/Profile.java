@@ -28,9 +28,9 @@ public class Profile {
     @Column(length = 500)
     private String bio;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "travel_style", length = 30)
-    private TravelStyle travelStyle;
+    /** Comma-separated list of TravelStyle enum values (e.g. "ADVENTURE,CULTURAL") */
+    @Column(name = "travel_styles", length = 200)
+    private String travelStyles;
 
     @Column(name = "budget_min")
     private Integer budgetMin;

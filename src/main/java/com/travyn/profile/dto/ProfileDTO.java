@@ -2,12 +2,12 @@ package com.travyn.profile.dto;
 
 import com.travyn.profile.entity.FoodPreference;
 import com.travyn.profile.entity.SleepSchedule;
-import com.travyn.profile.entity.TravelStyle;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -20,7 +20,7 @@ public class ProfileDTO {
     private String firstName;
     private String lastName;
     private String bio;
-    private TravelStyle travelStyle;
+    private List<String> travelStyles;
     private Integer budgetMin;
     private Integer budgetMax;
     private SleepSchedule sleepSchedule;

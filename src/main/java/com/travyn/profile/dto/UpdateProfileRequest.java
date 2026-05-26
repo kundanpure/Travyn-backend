@@ -1,8 +1,8 @@
 package com.travyn.profile.dto;
 
+import com.travyn.auth.entity.Gender;
 import com.travyn.profile.entity.FoodPreference;
 import com.travyn.profile.entity.SleepSchedule;
-import com.travyn.profile.entity.TravelStyle;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
@@ -10,6 +10,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 @Data
 @Builder
@@ -20,7 +22,8 @@ public class UpdateProfileRequest {
     @Size(max = 500, message = "Bio must not exceed 500 characters")
     private String bio;
 
-    private TravelStyle travelStyle;
+    /** List of TravelStyle enum names (e.g. ["ADVENTURE", "CULTURAL"]) */
+    private List<String> travelStyles;
 
     @Min(value = 0, message = "Budget minimum must be at least 0")
     private Integer budgetMin;
@@ -46,4 +49,11 @@ public class UpdateProfileRequest {
 
     @Size(max = 500, message = "Cover photo URL must not exceed 500 characters")
     private String coverPhotoUrl;
+
+    /**
+     * Optional gender update — enforced by service to max 2 changes lifetime.
+     * Pass null to leave gender unchanged.
+     */
+    private Gender gender;
 }
+

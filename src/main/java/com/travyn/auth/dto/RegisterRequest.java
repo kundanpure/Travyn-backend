@@ -1,7 +1,9 @@
 package com.travyn.auth.dto;
 
+import com.travyn.auth.entity.Gender;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,4 +31,7 @@ public class RegisterRequest {
     @NotBlank(message = "Please provide a valid password")
     @Size(min = 10, max = 128, message = "Password must be between 10 and 128 characters")
     private String password;
+
+    @NotNull(message = "Please select your gender")
+    private Gender gender;
 }

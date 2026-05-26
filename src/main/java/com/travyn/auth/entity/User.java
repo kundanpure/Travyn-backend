@@ -62,6 +62,20 @@ public class User {
     @Column(name = "lockout_until")
     private Instant lockoutUntil;
 
+    /**
+     * Gender — mandatory at registration. Can be changed at most 2 times
+     * (tracked by genderChangeCount).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    @Builder.Default
+    private Gender gender = Gender.PREFER_NOT_TO_SAY;
+
+    /** Tracks how many times the user has changed their gender. Max 2. */
+    @Column(name = "gender_change_count", nullable = false)
+    @Builder.Default
+    private int genderChangeCount = 0;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: 009-alter-profiles-travel-styles
+      author: travyn
+      comment: "Rename travel_style (single enum) to travel_styles (multi, comma-separated) and widen column"
+      changes:
+        - addColumn:
+            tableName: profiles
+            columns:
+              - column:
+                  name: travel_styles
+                  type: varchar(200)
+        - sql:
+            sql: "UPDATE profiles SET travel_styles = travel_style WHERE travel_style IS NOT NULL"
+        - dropColumn:
+            tableName: profiles
+            columnName: travel_style

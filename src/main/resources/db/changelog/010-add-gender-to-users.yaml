@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 010-add-gender-to-users
+      author: travyn
+      comment: "Add mandatory gender and gender_change_count columns to users table"
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: gender
+                  type: varchar(30)
+                  defaultValue: PREFER_NOT_TO_SAY
+                  constraints:
+                    nullable: false
+              - column:
+                  name: gender_change_count
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false

@@ -1,6 +1,7 @@
 package com.travyn.auth.service;
 
 import com.travyn.auth.dto.*;
+import com.travyn.auth.entity.Gender;
 import com.travyn.auth.entity.RefreshToken;
 import com.travyn.auth.entity.Role;
 import com.travyn.auth.entity.User;
@@ -44,6 +45,8 @@ public class AuthService {
 
         String verificationToken = UUID.randomUUID().toString();
 
+        Gender gender = request.getGender() != null ? request.getGender() : Gender.PREFER_NOT_TO_SAY;
+
         User user = User.builder()
                 .email(request.getEmail().toLowerCase().trim())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
@@ -53,6 +56,8 @@ public class AuthService {
                 .status(UserStatus.PENDING_VERIFICATION)
                 .emailVerified(false)
                 .emailVerificationToken(verificationToken)
+                .gender(gender)
+                .genderChangeCount(0)
                 .build();
 
         user = userRepository.save(user);
@@ -260,7 +265,21 @@ public class AuthService {
         refreshTokenRepository.save(refreshToken);
     }
 
+    private static final int MAX_GENDER_CHANGES = 2;
+
     private UserDTO mapToUserDTO(User user) {
-        return modelMapper.map(user, UserDTO.class);
+        int changesRemaining = Math.max(0, MAX_GENDER_CHANGES - user.getGenderChangeCount());
+        return UserDTO.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .role(user.getRole())
+                .status(user.getStatus())
+                .emailVerified(user.isEmailVerified())
+                .gender(user.getGender())
+                .genderChangesRemaining(changesRemaining)
+                .createdAt(user.getCreatedAt())
+                .build();
     }
 }
