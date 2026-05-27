@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -35,6 +36,8 @@ public class TripDTO {
     private String tags;
     private String tripCode;
     private String coverImageUrl;
+    private BigDecimal minBudget;
+    private BigDecimal maxBudget;
     private int memberCount;
     private int availableSpots;
     private Instant createdAt;

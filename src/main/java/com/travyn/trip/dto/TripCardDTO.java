@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -28,4 +29,6 @@ public class TripCardDTO {
     private String creatorName;
     private boolean womenOnly;
     private String tags;
+    private BigDecimal minBudget;
+    private BigDecimal maxBudget;
 }

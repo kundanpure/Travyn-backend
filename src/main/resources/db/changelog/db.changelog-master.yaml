@@ -19,5 +19,7 @@ databaseChangeLog:
       file: db/changelog/009-alter-profiles-travel-styles.yaml
   - include:
       file: db/changelog/010-add-gender-to-users.yaml
+  - include:
+      file: db/changelog/011-add-budget-to-trips.yaml
 
 

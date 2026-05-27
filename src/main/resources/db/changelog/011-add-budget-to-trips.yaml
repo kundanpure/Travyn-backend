@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: 011-add-budget-to-trips
+      author: travyn
+      changes:
+        - addColumn:
+            tableName: trips
+            columns:
+              - column:
+                  name: min_budget
+                  type: DECIMAL(12,2)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: max_budget
+                  type: DECIMAL(12,2)
+                  constraints:
+                    nullable: true

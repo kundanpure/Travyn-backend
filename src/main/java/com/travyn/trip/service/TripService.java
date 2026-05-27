@@ -41,6 +41,11 @@ public class TripService {
     public TripDTO createTrip(UUID userId, CreateTripRequest request) {
         User creator = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
+        // Validate budget range
+        if (request.getMinBudget() != null && request.getMaxBudget() != null
+                && request.getMinBudget().compareTo(request.getMaxBudget()) > 0) {
+            throw new IllegalArgumentException("Minimum budget must be less than or equal to maximum budget");
+        }
 
         Trip trip = Trip.builder()
                 .creatorId(userId)
@@ -58,6 +63,8 @@ public class TripService {
                 .tags(request.getTags())
                 .tripCode(generateTripCode())
                 .coverImageUrl(request.getCoverImageUrl())
+                .minBudget(request.getMinBudget())
+                .maxBudget(request.getMaxBudget())
                 .build();
 
         trip = tripRepository.save(trip);
@@ -131,6 +138,12 @@ public class TripService {
         }
         if (request.getCoverImageUrl() != null) {
             trip.setCoverImageUrl(request.getCoverImageUrl());
+        }
+        if (request.getMinBudget() != null) {
+            trip.setMinBudget(request.getMinBudget());
+        }
+        if (request.getMaxBudget() != null) {
+            trip.setMaxBudget(request.getMaxBudget());
         }
 
         trip = tripRepository.save(trip);
@@ -364,6 +377,8 @@ public class TripService {
                 .tags(trip.getTags())
                 .tripCode(trip.getTripCode())
                 .coverImageUrl(trip.getCoverImageUrl())
+                .minBudget(trip.getMinBudget())
+                .maxBudget(trip.getMaxBudget())
                 .memberCount(memberCount)
                 .availableSpots(trip.getMaxSize() - memberCount)
                 .createdAt(trip.getCreatedAt())
@@ -386,6 +401,8 @@ public class TripService {
                 .creatorName(creator != null ? creator.getFirstName() + " " + creator.getLastName() : null)
                 .womenOnly(trip.isWomenOnly())
                 .tags(trip.getTags())
+                .minBudget(trip.getMinBudget())
+                .maxBudget(trip.getMaxBudget())
                 .build();
     }
 

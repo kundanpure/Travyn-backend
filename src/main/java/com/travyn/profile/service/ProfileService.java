@@ -69,6 +69,13 @@ public class ProfileService {
         if (request.getBudgetMax() != null) {
             profile.setBudgetMax(request.getBudgetMax());
         }
+        // Validate budget range
+        Integer effectiveMin = request.getBudgetMin() != null ? request.getBudgetMin() : profile.getBudgetMin();
+        Integer effectiveMax = request.getBudgetMax() != null ? request.getBudgetMax() : profile.getBudgetMax();
+        if (effectiveMin != null && effectiveMax != null && effectiveMin > effectiveMax) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Minimum budget must be less than or equal to maximum budget");
+        }
         if (request.getSleepSchedule() != null) {
             profile.setSleepSchedule(request.getSleepSchedule());
         }

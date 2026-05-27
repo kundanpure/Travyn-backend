@@ -2,6 +2,8 @@ package com.travyn.trip.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.math.BigDecimal;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -72,6 +74,12 @@ public class Trip {
 
     @Column(name = "cover_image_url", length = 500)
     private String coverImageUrl;
+
+    @Column(name = "min_budget", precision = 12, scale = 2)
+    private BigDecimal minBudget;
+
+    @Column(name = "max_budget", precision = 12, scale = 2)
+    private BigDecimal maxBudget;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

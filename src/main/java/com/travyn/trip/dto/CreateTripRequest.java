@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
@@ -54,4 +55,10 @@ public class CreateTripRequest {
 
     @Size(max = 500, message = "Cover image URL must not exceed 500 characters")
     private String coverImageUrl;
+
+    @Min(value = 0, message = "Minimum budget must be at least 0")
+    private BigDecimal minBudget;
+
+    @Min(value = 0, message = "Maximum budget must be at least 0")
+    private BigDecimal maxBudget;
 }
