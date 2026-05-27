@@ -1,0 +1,51 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012-create-notifications-table
+      author: travyn
+      changes:
+        - createTable:
+            tableName: notifications
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: message
+                  type: VARCHAR(500)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: type
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: reference_id
+                  type: UUID
+              - column:
+                  name: is_read
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: notifications
+            baseColumnNames: user_id
+            constraintName: fk_notifications_users
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE

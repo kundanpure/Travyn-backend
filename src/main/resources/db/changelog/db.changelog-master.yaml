@@ -21,5 +21,7 @@ databaseChangeLog:
       file: db/changelog/010-add-gender-to-users.yaml
   - include:
       file: db/changelog/011-add-budget-to-trips.yaml
+  - include:
+      file: db/changelog/012-create-notifications-table.yaml
 
 

@@ -8,7 +8,10 @@ import com.travyn.chat.entity.ChatMessage;
 import com.travyn.chat.entity.MessageType;
 import com.travyn.chat.repository.ChatMessageRepository;
 import com.travyn.expense.exception.ExpenseAccessDeniedException;
+import com.travyn.notification.entity.NotificationType;
+import com.travyn.notification.service.NotificationService;
 import com.travyn.trip.entity.MemberStatus;
+import com.travyn.trip.entity.Trip;
 import com.travyn.trip.exception.TripNotFoundException;
 import com.travyn.trip.repository.TripMemberRepository;
 import com.travyn.trip.repository.TripRepository;
@@ -33,6 +36,7 @@ public class ChatService {
     private final TripMemberRepository tripMemberRepository;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public List<ChatMessageDTO> getMessages(UUID tripId, int page, int size) {
@@ -56,7 +60,7 @@ public class ChatService {
 
     @Transactional
     public ChatMessageDTO sendMessage(UUID userId, UUID tripId, SendMessageRequest request) {
-        tripRepository.findById(tripId)
+        Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new TripNotFoundException("Trip not found"));
         validateMembership(userId, tripId);
 
@@ -75,6 +79,10 @@ public class ChatService {
         // Broadcast to subscribers
         messagingTemplate.convertAndSend("/topic/chat/" + tripId, dto);
         log.debug("Chat message sent in trip {} by user {}", tripId, userId);
+
+        // Notify trip members
+        String notificationMsg = "New message from " + dto.getSenderName() + " in " + trip.getTitle();
+        notificationService.notifyTripMembers(tripId, userId, notificationMsg, NotificationType.CHAT_MESSAGE, tripId);
 
         return dto;
     }
