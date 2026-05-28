@@ -50,6 +50,10 @@ public class TripService {
             throw new IllegalArgumentException("Minimum budget must be less than or equal to maximum budget");
         }
 
+        if (request.isWomenOnly() && creator.getGender() != com.travyn.auth.entity.Gender.FEMALE) {
+            throw new IllegalArgumentException("Only verified women can create women-only trips");
+        }
+
         Trip trip = Trip.builder()
                 .creatorId(userId)
                 .title(request.getTitle().trim())
@@ -105,6 +109,13 @@ public class TripService {
         if (!trip.getCreatorId().equals(userId)) {
             throw new TripAccessDeniedException("Only the trip creator can update this trip");
         }
+        
+        User creator = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("Trip creator not found"));
+
+        if (request.getWomenOnly() != null && request.getWomenOnly() && creator.getGender() != com.travyn.auth.entity.Gender.FEMALE) {
+            throw new IllegalArgumentException("Only verified women can make a trip women-only");
+        }
 
         if (request.getTitle() != null) {
             trip.setTitle(request.getTitle().trim());
@@ -151,8 +162,7 @@ public class TripService {
 
         trip = tripRepository.save(trip);
 
-        User creator = userRepository.findById(trip.getCreatorId())
-                .orElseThrow(() -> new UserNotFoundException("Trip creator not found"));
+        trip = tripRepository.save(trip);
 
         log.info("Trip updated: {} by user: {}", trip.getTripCode(), userId);
 
