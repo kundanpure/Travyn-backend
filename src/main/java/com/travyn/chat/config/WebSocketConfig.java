@@ -58,9 +58,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         objectMapper.registerModule(new JavaTimeModule());
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
+        org.springframework.messaging.converter.DefaultContentTypeResolver resolver = new org.springframework.messaging.converter.DefaultContentTypeResolver();
+        resolver.setDefaultMimeType(org.springframework.util.MimeTypeUtils.APPLICATION_JSON);
+
         MappingJackson2MessageConverter converter = new MappingJackson2MessageConverter();
         converter.setObjectMapper(objectMapper);
-        messageConverters.add(converter);
+        converter.setContentTypeResolver(resolver);
+        messageConverters.add(0, converter);
 
         return false; // false = also add default converters
     }
