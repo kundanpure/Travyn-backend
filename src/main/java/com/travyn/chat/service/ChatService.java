@@ -68,7 +68,7 @@ public class ChatService {
                 .tripId(tripId)
                 .senderId(userId)
                 .content(request.getContent().trim())
-                .messageType(MessageType.TEXT)
+                .messageType(request.getMessageType() != null ? request.getMessageType() : MessageType.TEXT)
                 .build();
 
         message = messageRepository.save(message);

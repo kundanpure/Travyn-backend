@@ -33,6 +33,16 @@ public class ChatController {
         return ResponseEntity.ok(chatService.getMessages(tripId, page, size));
     }
 
+    @PostMapping("/messages")
+    @Operation(summary = "Send a new message to the trip chat")
+    public ResponseEntity<ChatMessageDTO> sendMessage(
+            @PathVariable UUID tripId,
+            @RequestBody com.travyn.chat.dto.SendMessageRequest request,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        User user = findUserByEmail(userDetails.getUsername());
+        return ResponseEntity.ok(chatService.sendMessage(user.getId(), tripId, request));
+    }
+
     private User findUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
