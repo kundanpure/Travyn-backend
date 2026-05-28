@@ -82,6 +82,24 @@ public class NotificationService {
         log.debug("Sent {} notification to {} members for trip {}", type, memberIds.size(), tripId);
     }
 
+    @Transactional
+    public void notifyUser(UUID userId, String message, NotificationType type, UUID referenceId) {
+        Notification notification = Notification.builder()
+                .userId(userId)
+                .message(message)
+                .type(type)
+                .referenceId(referenceId)
+                .isRead(false)
+                .build();
+
+        notification = notificationRepository.save(notification);
+
+        NotificationDTO dto = mapToDTO(notification);
+        messagingTemplate.convertAndSend("/topic/user." + userId + ".notifications", dto);
+
+        log.debug("Sent {} notification to user {}", type, userId);
+    }
+
     private NotificationDTO mapToDTO(Notification notification) {
         return NotificationDTO.builder()
                 .id(notification.getId())

@@ -3,6 +3,8 @@ package com.travyn.trip.service;
 import com.travyn.auth.entity.User;
 import com.travyn.auth.repository.UserRepository;
 import com.travyn.common.exception.UserNotFoundException;
+import com.travyn.notification.entity.NotificationType;
+import com.travyn.notification.service.NotificationService;
 import com.travyn.trip.dto.*;
 import com.travyn.trip.entity.*;
 import com.travyn.trip.exception.AlreadyMemberException;
@@ -32,6 +34,7 @@ public class TripService {
     private final TripRepository tripRepository;
     private final TripMemberRepository tripMemberRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     private static final String TRIP_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int TRIP_CODE_LENGTH = 8;
@@ -267,6 +270,16 @@ public class TripService {
             }
         }
 
+        // Notify the trip creator about the join request
+        if (initialStatus == MemberStatus.PENDING) {
+            notificationService.notifyUser(
+                    trip.getCreatorId(),
+                    user.getFirstName() + " " + user.getLastName() + " wants to join \"" + trip.getTitle() + "\"",
+                    NotificationType.JOIN_REQUEST,
+                    tripId
+            );
+        }
+
         return mapToTripMemberDTO(member, user);
     }
 
@@ -314,6 +327,23 @@ public class TripService {
 
         log.info("Join request {} for user {} on trip {} by creator {}",
                 newStatus, member.getUserId(), trip.getTripCode(), creatorId);
+
+        // Notify the user about their join request decision
+        if (newStatus == MemberStatus.APPROVED) {
+            notificationService.notifyUser(
+                    member.getUserId(),
+                    "Your request to join \"" + trip.getTitle() + "\" has been approved! 🎉",
+                    NotificationType.JOIN_APPROVED,
+                    tripId
+            );
+        } else if (newStatus == MemberStatus.REJECTED) {
+            notificationService.notifyUser(
+                    member.getUserId(),
+                    "Your request to join \"" + trip.getTitle() + "\" was declined.",
+                    NotificationType.JOIN_REJECTED,
+                    tripId
+            );
+        }
 
         return mapToTripMemberDTO(member, user);
     }
