@@ -243,11 +243,44 @@ public class AadhaarVerificationService {
             }
             if (fields.size() < 4) throw new RuntimeException("Parsed QR data is missing required demographic fields.");
 
-            String referenceId = fields.get(0);
-            aadhaarLast4 = referenceId.length() >= 4 ? referenceId.substring(0, 4) : "0000";
-            verifiedName = fields.get(1);
-            dobRaw = fields.get(2);
-            genderRaw = fields.get(3);
+            int nameIndex = -1;
+            for (int i = 0; i < Math.min(fields.size(), 6); i++) {
+                String f = fields.get(i).trim();
+                if (f.length() > 1 && !f.matches(".*\\d.*")) {
+                    if (!f.equalsIgnoreCase("MALE") && !f.equalsIgnoreCase("FEMALE") && !f.equalsIgnoreCase("NON_BINARY")) {
+                        nameIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            String referenceId = "";
+            if (nameIndex != -1) {
+                verifiedName = fields.get(nameIndex).trim();
+                if (fields.size() > nameIndex + 1) dobRaw = fields.get(nameIndex + 1).trim();
+                if (fields.size() > nameIndex + 2) genderRaw = fields.get(nameIndex + 2).trim();
+
+                for (int i = nameIndex - 1; i >= 0; i--) {
+                    if (fields.get(i).length() >= 4) {
+                        referenceId = fields.get(i).trim();
+                        break;
+                    }
+                }
+                if (referenceId.isEmpty() && nameIndex > 0) {
+                    referenceId = fields.get(nameIndex - 1).trim();
+                }
+            } else {
+                int offset = 0;
+                if (fields.size() > 0 && fields.get(0).isEmpty()) offset = 1;
+                if (fields.size() > offset && fields.get(offset).length() == 1 && "0123".contains(fields.get(offset))) offset++;
+                if (fields.size() < offset + 4) throw new RuntimeException("Parsed QR data is missing required demographic fields.");
+                referenceId = fields.get(offset);
+                verifiedName = fields.get(offset + 1);
+                dobRaw = fields.get(offset + 2);
+                genderRaw = fields.get(offset + 3);
+            }
+            
+            aadhaarLast4 = referenceId.length() >= 4 ? referenceId.substring(0, 4) : referenceId;
         }
 
         String dob = parseAadhaarDob(dobRaw);
