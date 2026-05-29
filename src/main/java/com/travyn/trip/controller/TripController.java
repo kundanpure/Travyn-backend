@@ -139,6 +139,24 @@ public class TripController {
         return ResponseEntity.ok(member);
     }
 
+    @PostMapping("/{id}/reviews")
+    @Operation(summary = "Submit a review for the trip")
+    public ResponseEntity<TripReviewDTO> submitTripReview(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID id,
+            @Valid @RequestBody TripReviewRequest request) {
+        User user = findUserByEmail(email);
+        TripReviewDTO review = tripService.submitTripReview(user.getId(), id, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(review);
+    }
+
+    @GetMapping("/{id}/reviews")
+    @Operation(summary = "Get all reviews for the trip")
+    public ResponseEntity<List<TripReviewDTO>> getTripReviews(@PathVariable UUID id) {
+        List<TripReviewDTO> reviews = tripService.getTripReviews(id);
+        return ResponseEntity.ok(reviews);
+    }
+
     private User findUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));

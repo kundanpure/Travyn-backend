@@ -7,12 +7,21 @@ import com.travyn.notification.entity.NotificationType;
 import com.travyn.notification.service.NotificationService;
 import com.travyn.trip.dto.*;
 import com.travyn.trip.entity.*;
+import com.travyn.trip.dto.UpdateTripRequest;
+import com.travyn.trip.entity.Trip;
+import com.travyn.trip.entity.TripMember;
+import com.travyn.trip.entity.TripStatus;
+import com.travyn.trip.entity.TripType;
+import com.travyn.trip.entity.TripReview;
+import com.travyn.trip.dto.TripReviewRequest;
+import com.travyn.trip.dto.TripReviewDTO;
 import com.travyn.trip.exception.AlreadyMemberException;
 import com.travyn.trip.exception.TripAccessDeniedException;
 import com.travyn.trip.exception.TripFullException;
 import com.travyn.trip.exception.TripNotFoundException;
 import com.travyn.trip.repository.TripMemberRepository;
 import com.travyn.trip.repository.TripRepository;
+import com.travyn.trip.repository.TripReviewRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,6 +42,7 @@ public class TripService {
 
     private final TripRepository tripRepository;
     private final TripMemberRepository tripMemberRepository;
+    private final TripReviewRepository tripReviewRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
 
@@ -92,10 +102,18 @@ public class TripService {
         return mapToTripDTO(trip, creator);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TripDTO getTrip(UUID tripId) {
         Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+
+        // Auto-close: if end date has passed and trip is still OPEN or FULL, mark as COMPLETED
+        if ((trip.getStatus() == TripStatus.OPEN || trip.getStatus() == TripStatus.FULL)
+                && trip.getEndDate().isBefore(LocalDate.now())) {
+            trip.setStatus(TripStatus.COMPLETED);
+            trip = tripRepository.save(trip);
+            log.info("Trip auto-completed: {} (end date passed)", trip.getTripCode());
+        }
 
         User creator = userRepository.findById(trip.getCreatorId())
                 .orElseThrow(() -> new UserNotFoundException("Trip creator not found"));
@@ -110,6 +128,11 @@ public class TripService {
 
         if (!trip.getCreatorId().equals(userId)) {
             throw new TripAccessDeniedException("Only the trip creator can update this trip");
+        }
+
+        // Block edits on completed or cancelled trips
+        if (trip.getStatus() == TripStatus.COMPLETED || trip.getStatus() == TripStatus.CANCELLED) {
+            throw new TripAccessDeniedException("Cannot edit a trip that is " + trip.getStatus().name().toLowerCase());
         }
         
         User creator = userRepository.findById(userId)
@@ -188,7 +211,7 @@ public class TripService {
         log.info("Trip cancelled: {} by user: {}", trip.getTripCode(), userId);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<TripDTO> getMyTrips(UUID userId) {
         // Get ALL memberships for this user (CREATOR, APPROVED, PENDING, etc.)
         List<TripMember> memberships = tripMemberRepository.findByUserId(userId);
@@ -202,6 +225,14 @@ public class TripService {
 
         return trips.stream()
                 .map(trip -> {
+                    // Auto-close: if end date has passed and trip is still OPEN or FULL, mark as COMPLETED
+                    if ((trip.getStatus() == TripStatus.OPEN || trip.getStatus() == TripStatus.FULL)
+                            && trip.getEndDate().isBefore(LocalDate.now())) {
+                        trip.setStatus(TripStatus.COMPLETED);
+                        tripRepository.save(trip);
+                        log.info("Trip auto-completed: {} (end date passed)", trip.getTripCode());
+                    }
+
                     User creator = userRepository.findById(trip.getCreatorId()).orElse(null);
                     TripDTO dto = mapToTripDTO(trip, creator);
 
@@ -481,6 +512,60 @@ public class TripService {
                 .lastName(user != null ? user.getLastName() : null)
                 .status(member.getMemberStatus())
                 .requestedAt(member.getJoinedAt())
+                .build();
+    }
+
+    @Transactional
+    public TripReviewDTO submitTripReview(UUID userId, UUID tripId, TripReviewRequest request) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+
+        if (trip.getStatus() != TripStatus.COMPLETED) {
+            throw new IllegalStateException("Can only review completed trips");
+        }
+
+        TripMember member = tripMemberRepository.findByTripIdAndUserId(tripId, userId)
+                .orElseThrow(() -> new TripAccessDeniedException("You are not a member of this trip"));
+
+        if (member.getMemberStatus() != MemberStatus.APPROVED) {
+            throw new TripAccessDeniedException("Only approved members can review the trip");
+        }
+
+        if (tripReviewRepository.findByTripIdAndReviewerId(tripId, userId).isPresent()) {
+            throw new IllegalStateException("You have already reviewed this trip");
+        }
+
+        User reviewer = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("Reviewer not found"));
+
+        TripReview review = TripReview.builder()
+                .trip(trip)
+                .reviewer(reviewer)
+                .rating(request.getRating())
+                .textReview(request.getTextReview())
+                .build();
+
+        review = tripReviewRepository.save(review);
+        return mapToTripReviewDTO(review);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TripReviewDTO> getTripReviews(UUID tripId) {
+        return tripReviewRepository.findByTripIdOrderByCreatedAtDesc(tripId).stream()
+                .map(this::mapToTripReviewDTO)
+                .toList();
+    }
+
+    private TripReviewDTO mapToTripReviewDTO(TripReview review) {
+        return TripReviewDTO.builder()
+                .id(review.getId())
+                .tripId(review.getTrip().getId())
+                .reviewerId(review.getReviewer().getId())
+                .reviewerName(review.getReviewer().getFirstName() + " " + review.getReviewer().getLastName())
+                .reviewerAvatarUrl(null)
+                .rating(review.getRating())
+                .textReview(review.getTextReview())
+                .createdAt(review.getCreatedAt())
                 .build();
     }
 }

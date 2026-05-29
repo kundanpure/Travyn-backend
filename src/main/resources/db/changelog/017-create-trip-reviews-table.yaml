@@ -1,0 +1,55 @@
+databaseChangeLog:
+  - changeSet:
+      id: 017-create-trip-reviews-table
+      author: antigravity
+      changes:
+        - createTable:
+            tableName: trip_reviews
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: trip_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: reviewer_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rating
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: text_review
+                  type: varchar(1000)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: trip_reviews
+            baseColumnNames: trip_id
+            constraintName: fk_trip_reviews_trip
+            referencedTableName: trips
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: trip_reviews
+            baseColumnNames: reviewer_id
+            constraintName: fk_trip_reviews_reviewer
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: trip_reviews
+            columnNames: trip_id, reviewer_id
+            constraintName: uq_trip_reviews_trip_reviewer
