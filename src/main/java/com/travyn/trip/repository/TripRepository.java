@@ -25,12 +25,14 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
             "AND (:destination IS NULL OR LOWER(t.destination) LIKE LOWER(CONCAT('%', CAST(:destination AS string), '%'))) " +
             "AND (:tripType IS NULL OR t.tripType = :tripType) " +
             "AND (:fromDate IS NULL OR t.startDate >= :fromDate) " +
-            "AND (:toDate IS NULL OR t.endDate <= :toDate)")
+            "AND (:toDate IS NULL OR t.endDate <= :toDate) " +
+            "AND (:isVerifiedWoman = true OR t.womenOnly = false)")
     Page<Trip> discoverTrips(
             @Param("status") TripStatus status,
             @Param("destination") String destination,
             @Param("tripType") TripType tripType,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
+            @Param("isVerifiedWoman") boolean isVerifiedWoman,
             Pageable pageable);
 }

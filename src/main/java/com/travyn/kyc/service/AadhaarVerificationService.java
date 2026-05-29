@@ -115,7 +115,7 @@ public class AadhaarVerificationService {
 
             // 6. Update User Profile with Verified Data
             user.setStatus(UserStatus.KYC_VERIFIED);
-            user.setTrustScore(user.getTrustScore() + 50);
+            // TrustScore engine handles score now
             user.setKycFailedAttempts(0);
             user.setKycLockoutUntil(null);
 

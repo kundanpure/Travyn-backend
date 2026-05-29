@@ -29,3 +29,5 @@ databaseChangeLog:
       file: db/changelog/014-add-dob-to-users.yaml
   - include:
       file: db/changelog/015-add-username-to-users.yaml
+  - include:
+      file: db/changelog/016-create-reputation-tables.yaml

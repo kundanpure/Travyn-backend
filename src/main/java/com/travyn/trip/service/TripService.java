@@ -50,8 +50,10 @@ public class TripService {
             throw new IllegalArgumentException("Minimum budget must be less than or equal to maximum budget");
         }
 
-        if (request.isWomenOnly() && creator.getGender() != com.travyn.auth.entity.Gender.FEMALE) {
-            throw new IllegalArgumentException("Only verified women can create women-only trips");
+        if (request.isWomenOnly()) {
+            if (creator.getGender() != com.travyn.auth.entity.Gender.FEMALE || creator.getStatus() != com.travyn.auth.entity.UserStatus.KYC_VERIFIED) {
+                throw new IllegalArgumentException("Only KYC-verified women can create women-only trips");
+            }
         }
 
         Trip trip = Trip.builder()
@@ -113,8 +115,10 @@ public class TripService {
         User creator = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("Trip creator not found"));
 
-        if (request.getWomenOnly() != null && request.getWomenOnly() && creator.getGender() != com.travyn.auth.entity.Gender.FEMALE) {
-            throw new IllegalArgumentException("Only verified women can make a trip women-only");
+        if (request.getWomenOnly() != null && request.getWomenOnly()) {
+            if (creator.getGender() != com.travyn.auth.entity.Gender.FEMALE || creator.getStatus() != com.travyn.auth.entity.UserStatus.KYC_VERIFIED) {
+                throw new IllegalArgumentException("Only KYC-verified women can make a trip women-only");
+            }
         }
 
         if (request.getTitle() != null) {
@@ -218,11 +222,12 @@ public class TripService {
     @Transactional(readOnly = true)
     public Page<TripCardDTO> discoverTrips(String destination, TripType type,
                                             LocalDate fromDate, LocalDate toDate,
+                                            boolean isVerifiedWoman,
                                             int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         Page<Trip> trips = tripRepository.discoverTrips(
-                TripStatus.OPEN, destination, type, fromDate, toDate, pageRequest);
+                TripStatus.OPEN, destination, type, fromDate, toDate, isVerifiedWoman, pageRequest);
 
         return trips.map(trip -> {
             User creator = userRepository.findById(trip.getCreatorId()).orElse(null);
@@ -253,6 +258,12 @@ public class TripService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        if (trip.isWomenOnly()) {
+            if (user.getGender() != com.travyn.auth.entity.Gender.FEMALE || user.getStatus() != com.travyn.auth.entity.UserStatus.KYC_VERIFIED) {
+                throw new TripAccessDeniedException("This is a women-only trip. Only KYC-verified women can join.");
+            }
+        }
 
         MemberStatus initialStatus = trip.getApprovalMode() == ApprovalMode.AUTO
                 ? MemberStatus.APPROVED

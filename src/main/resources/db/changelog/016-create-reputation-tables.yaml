@@ -1,0 +1,126 @@
+databaseChangeLog:
+  - changeSet:
+      id: 016-create-reputation-tables
+      author: travyn
+      changes:
+        - createTable:
+            tableName: trust_scores
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    unique: true
+                    foreignKeyName: fk_trust_score_user
+                    references: users(id)
+              - column:
+                  name: total_score
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: base_score
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: gov_id_score
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: profile_score
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: review_score
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_computed_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: reviews
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: trip_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_review_trip
+                    references: trips(id)
+              - column:
+                  name: reviewer_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_review_reviewer
+                    references: users(id)
+              - column:
+                  name: reviewee_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_review_reviewee
+                    references: users(id)
+              - column:
+                  name: punctuality_rating
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cleanliness_rating
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: communication_rating
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: vibe_rating
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: safety_rating
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: text_review
+                  type: VARCHAR(500)
+              - column:
+                  name: is_published
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        # A user can only review another user once per trip
+        - addUniqueConstraint:
+            tableName: reviews
+            columnNames: trip_id, reviewer_id, reviewee_id
+            constraintName: uq_review_trip_reviewer_reviewee

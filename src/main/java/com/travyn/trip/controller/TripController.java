@@ -43,13 +43,24 @@ public class TripController {
     @GetMapping
     @Operation(summary = "Discover public trips with optional filters")
     public ResponseEntity<Page<TripCardDTO>> discoverTrips(
+            @AuthenticationPrincipal String email,
             @RequestParam(required = false) String destination,
             @RequestParam(required = false) TripType type,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Page<TripCardDTO> trips = tripService.discoverTrips(destination, type, fromDate, toDate, page, size);
+        
+        boolean isVerifiedWoman = false;
+        if (email != null && !email.equals("anonymousUser")) {
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user != null && user.getGender() == com.travyn.auth.entity.Gender.FEMALE 
+                && user.getStatus() == com.travyn.auth.entity.UserStatus.KYC_VERIFIED) {
+                isVerifiedWoman = true;
+            }
+        }
+
+        Page<TripCardDTO> trips = tripService.discoverTrips(destination, type, fromDate, toDate, isVerifiedWoman, page, size);
         return ResponseEntity.ok(trips);
     }
 
