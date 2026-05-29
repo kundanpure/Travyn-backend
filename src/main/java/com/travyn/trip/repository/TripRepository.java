@@ -22,6 +22,7 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
     List<Trip> findByStatus(TripStatus status);
 
     @Query("SELECT t FROM Trip t WHERE t.status = :status " +
+            "AND (:isUpcoming = false OR t.startDate > current_date) " +
             "AND (:destination IS NULL OR LOWER(t.destination) LIKE LOWER(CONCAT('%', CAST(:destination AS string), '%'))) " +
             "AND (:tripType IS NULL OR t.tripType = :tripType) " +
             "AND (:fromDate IS NULL OR t.startDate >= :fromDate) " +
@@ -34,5 +35,6 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
             @Param("isVerifiedWoman") boolean isVerifiedWoman,
+            @Param("isUpcoming") boolean isUpcoming,
             Pageable pageable);
 }

@@ -254,11 +254,21 @@ public class TripService {
     public Page<TripCardDTO> discoverTrips(String destination, TripType type,
                                             LocalDate fromDate, LocalDate toDate,
                                             boolean isVerifiedWoman,
+                                            String statusFilter,
                                             int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
+        TripStatus status = TripStatus.OPEN;
+        boolean isUpcoming = false;
+
+        if ("COMPLETED".equalsIgnoreCase(statusFilter)) {
+            status = TripStatus.COMPLETED;
+        } else if ("UPCOMING".equalsIgnoreCase(statusFilter)) {
+            isUpcoming = true;
+        }
+
         Page<Trip> trips = tripRepository.discoverTrips(
-                TripStatus.OPEN, destination, type, fromDate, toDate, isVerifiedWoman, pageRequest);
+                status, destination, type, fromDate, toDate, isVerifiedWoman, isUpcoming, pageRequest);
 
         return trips.map(trip -> {
             User creator = userRepository.findById(trip.getCreatorId()).orElse(null);

@@ -48,6 +48,7 @@ public class TripController {
             @RequestParam(required = false) TripType type,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false, defaultValue = "OPEN") String statusFilter,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         
@@ -60,7 +61,7 @@ public class TripController {
             }
         }
 
-        Page<TripCardDTO> trips = tripService.discoverTrips(destination, type, fromDate, toDate, isVerifiedWoman, page, size);
+        Page<TripCardDTO> trips = tripService.discoverTrips(destination, type, fromDate, toDate, isVerifiedWoman, statusFilter, page, size);
         return ResponseEntity.ok(trips);
     }
 
