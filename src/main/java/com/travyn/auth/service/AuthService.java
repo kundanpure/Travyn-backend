@@ -11,6 +11,10 @@ import com.travyn.auth.repository.UserRepository;
 import com.travyn.auth.security.JwtUtil;
 import com.travyn.common.exception.*;
 import com.travyn.common.service.EmailService;
+import com.travyn.kyc.entity.KycRecord;
+import com.travyn.kyc.entity.KycStatus;
+import com.travyn.kyc.repository.KycRecordRepository;
+import com.travyn.kyc.service.PreviewTokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -33,6 +37,8 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
     private final ModelMapper modelMapper;
+    private final PreviewTokenService previewTokenService;
+    private final KycRecordRepository kycRecordRepository;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCKOUT_MINUTES = 15;
@@ -42,13 +48,32 @@ public class AuthService {
         if (userRepository.existsByEmail(request.getEmail().toLowerCase().trim())) {
             throw new DuplicateEmailException("An account with this email already exists");
         }
+        if (userRepository.existsByUsernameIgnoreCase(request.getUsername().trim())) {
+            throw new IllegalArgumentException("Username is already taken");
+        }
+
+        // ── Aadhaar-first registration path ──────────────────────────────────────
+        if (request.getPreviewToken() != null && !request.getPreviewToken().isBlank()) {
+            return registerWithAadhaar(request);
+        }
+
+        // ── Email-first registration path (original) ─────────────────────────────
+        if (request.getFirstName() == null || request.getFirstName().isBlank()) {
+            throw new IllegalArgumentException("First name is required for email registration");
+        }
+        if (request.getLastName() == null || request.getLastName().isBlank()) {
+            throw new IllegalArgumentException("Last name is required for email registration");
+        }
+        if (request.getGender() == null) {
+            throw new IllegalArgumentException("Gender is required for email registration");
+        }
 
         String verificationToken = UUID.randomUUID().toString();
-
-        Gender gender = request.getGender() != null ? request.getGender() : Gender.PREFER_NOT_TO_SAY;
+        Gender gender = request.getGender();
 
         User user = User.builder()
                 .email(request.getEmail().toLowerCase().trim())
+                .username(request.getUsername().trim().toLowerCase())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .firstName(request.getFirstName().trim())
                 .lastName(request.getLastName().trim())
@@ -61,15 +86,12 @@ public class AuthService {
                 .build();
 
         user = userRepository.save(user);
-        log.info("New user registered: {}", user.getEmail());
+        log.info("New user registered (email-first): {}", user.getEmail());
 
-        // Send verification email
         emailService.sendVerificationEmail(user.getEmail(), user.getFirstName(), verificationToken);
 
-        // Generate tokens so user can access limited features while verifying email
         String accessToken = jwtUtil.generateAccessToken(user.getEmail(), user.getRole().name());
         String refreshTokenStr = jwtUtil.generateRefreshToken(user.getEmail());
-
         saveRefreshToken(user, refreshTokenStr);
 
         return AuthResponse.builder()
@@ -78,6 +100,83 @@ public class AuthService {
                 .expiresIn(jwtUtil.getAccessTokenExpiryMs() / 1000)
                 .user(mapToUserDTO(user))
                 .build();
+    }
+
+    @Transactional
+    private AuthResponse registerWithAadhaar(RegisterRequest request) {
+        java.util.Map<String, Object> tokenData;
+        try {
+            tokenData = previewTokenService.validateAndDecode(request.getPreviewToken());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Aadhaar session expired or invalid. Please scan your QR again.");
+        }
+
+        String aadhaarName  = (String) tokenData.get("name");
+        String aadhaarGender = (String) tokenData.get("gender");
+        String aadhaarDob   = (String) tokenData.get("dob");
+        String aadhaarLast4 = (String) tokenData.get("last4");
+
+        // Split name into first/last
+        String[] parts = aadhaarName.trim().split("\\s+");
+        String firstName = parts.length == 1 ? parts[0] : aadhaarName.substring(0, aadhaarName.lastIndexOf(parts[parts.length - 1])).trim();
+        String lastName  = parts.length == 1 ? "" : parts[parts.length - 1];
+
+        Gender gender = Gender.PREFER_NOT_TO_SAY;
+        try { gender = Gender.valueOf(aadhaarGender.toUpperCase()); } catch (Exception ignored) {}
+
+        // Create user — KYC_VERIFIED immediately, email verified immediately
+        User user = User.builder()
+                .email(request.getEmail().toLowerCase().trim())
+                .username(request.getUsername().trim().toLowerCase())
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .firstName(firstName)
+                .lastName(lastName)
+                .role(Role.VERIFIED)
+                .status(UserStatus.KYC_VERIFIED)
+                .emailVerified(true)   // Aadhaar is stronger proof
+                .gender(gender)
+                .genderChangeCount(0)
+                .trustScore(50)        // KYC trust bonus
+                .build();
+
+        // Parse DOB
+        try { user.setDateOfBirth(java.time.LocalDate.parse(aadhaarDob)); } catch (Exception ignored) {}
+
+        user = userRepository.save(user);
+
+        // Create KYC record
+        KycRecord kycRecord = KycRecord.builder()
+                .user(user)
+                .aadhaarLast4(aadhaarLast4)
+                .verifiedName(aadhaarName)
+                .dob(aadhaarDob)
+                .gender(aadhaarGender)
+                .status(KycStatus.VERIFIED)
+                .build();
+        kycRecordRepository.save(kycRecord);
+
+        log.info("New user registered (Aadhaar-first, KYC_VERIFIED): {}", user.getEmail());
+
+        // Send welcome email (no verification needed)
+        emailService.sendVerificationEmail(user.getEmail(), user.getFirstName(), null);
+
+        String accessToken = jwtUtil.generateAccessToken(user.getEmail(), user.getRole().name());
+        String refreshTokenStr = jwtUtil.generateRefreshToken(user.getEmail());
+        saveRefreshToken(user, refreshTokenStr);
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshTokenStr)
+                .expiresIn(jwtUtil.getAccessTokenExpiryMs() / 1000)
+                .user(mapToUserDTO(user))
+                .build();
+    }
+
+    public boolean isUsernameAvailable(String username) {
+        if (username == null || username.isBlank() || username.length() < 3 || username.length() > 30) {
+            return false;
+        }
+        return !userRepository.existsByUsernameIgnoreCase(username.trim());
     }
 
     @Transactional
@@ -172,6 +271,12 @@ public class AuthService {
         userRepository.save(user);
 
         log.info("Email verified for user: {}", user.getEmail());
+    }
+
+    public UserDTO getCurrentUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new InvalidCredentialsException());
+        return mapToUserDTO(user);
     }
 
     @Transactional
@@ -269,15 +374,27 @@ public class AuthService {
 
     private UserDTO mapToUserDTO(User user) {
         int changesRemaining = Math.max(0, MAX_GENDER_CHANGES - user.getGenderChangeCount());
+        
+        Integer age = null;
+        String dob = null;
+        if (user.getDateOfBirth() != null) {
+            age = java.time.Period.between(user.getDateOfBirth(), java.time.LocalDate.now()).getYears();
+            dob = user.getDateOfBirth().toString();
+        }
+
         return UserDTO.builder()
                 .id(user.getId())
                 .email(user.getEmail())
+                .username(user.getUsername())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .role(user.getRole())
                 .status(user.getStatus())
+                .isVerified(user.getStatus() == UserStatus.KYC_VERIFIED)
                 .emailVerified(user.isEmailVerified())
                 .gender(user.getGender())
+                .age(age)
+                .dob(dob)
                 .genderChangesRemaining(changesRemaining)
                 .createdAt(user.getCreatedAt())
                 .build();

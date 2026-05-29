@@ -17,8 +17,10 @@ import java.util.UUID;
 public class ProfileDTO {
 
     private UUID userId;
+    private String username;
     private String firstName;
     private String lastName;
+    private boolean isVerified;
     private String bio;
     private List<String> travelStyles;
     private Integer budgetMin;

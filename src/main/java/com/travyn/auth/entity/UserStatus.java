@@ -4,5 +4,6 @@ public enum UserStatus {
     ACTIVE,
     SUSPENDED,
     BANNED,
-    PENDING_VERIFICATION
+    PENDING_VERIFICATION,
+    KYC_VERIFIED
 }

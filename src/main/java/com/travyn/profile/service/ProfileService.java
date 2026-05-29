@@ -2,6 +2,7 @@ package com.travyn.profile.service;
 
 import com.travyn.auth.entity.Gender;
 import com.travyn.auth.entity.User;
+import com.travyn.auth.entity.UserStatus;
 import com.travyn.auth.repository.UserRepository;
 import com.travyn.common.exception.UserNotFoundException;
 import com.travyn.profile.dto.ProfileDTO;
@@ -98,6 +99,42 @@ public class ProfileService {
             profile.setCoverPhotoUrl(request.getCoverPhotoUrl().trim());
         }
 
+        // Name change — only allowed before KYC verification
+        boolean nameChanged = false;
+        String newFirstName = request.getFirstName() != null ? request.getFirstName().trim() : null;
+        String newLastName = request.getLastName() != null ? request.getLastName().trim() : null;
+        String newUsername = request.getUsername() != null ? request.getUsername().trim().toLowerCase() : null;
+
+        if (newUsername != null && !newUsername.isBlank() && !newUsername.equals(user.getUsername())) {
+            if (userRepository.existsByUsernameIgnoreCase(newUsername)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username is already taken.");
+            }
+            user.setUsername(newUsername);
+            log.info("User {} updated username to {}", userId, newUsername);
+        }
+
+        if (newFirstName != null && !newFirstName.isBlank() && !newFirstName.equals(user.getFirstName())) {
+            nameChanged = true;
+        }
+        if (newLastName != null && !newLastName.isBlank() && !newLastName.equals(user.getLastName())) {
+            nameChanged = true;
+        }
+
+        if (nameChanged) {
+            if (user.getStatus() == UserStatus.KYC_VERIFIED) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Name cannot be changed after Aadhaar verification. Your name is permanently locked.");
+            }
+            if (newFirstName != null && !newFirstName.isBlank()) {
+                user.setFirstName(newFirstName);
+            }
+            if (newLastName != null && !newLastName.isBlank()) {
+                user.setLastName(newLastName);
+            }
+            userRepository.save(user);
+            log.info("User {} updated name to {} {} (pre-KYC)", userId, user.getFirstName(), user.getLastName());
+        }
+
         // Gender change — enforced max 2 times lifetime
         if (request.getGender() != null && request.getGender() != user.getGender()) {
             if (user.getGenderChangeCount() >= MAX_GENDER_CHANGES) {
@@ -167,8 +204,10 @@ public class ProfileService {
         int changesRemaining = Math.max(0, MAX_GENDER_CHANGES - user.getGenderChangeCount());
         return ProfileDTO.builder()
                 .userId(user.getId())
+                .username(user.getUsername())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
+                .isVerified(user.getStatus() == com.travyn.auth.entity.UserStatus.KYC_VERIFIED)
                 .bio(profile.getBio())
                 .travelStyles(parseTravelStyles(profile.getTravelStyles()))
                 .budgetMin(profile.getBudgetMin())

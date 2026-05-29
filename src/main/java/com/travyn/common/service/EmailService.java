@@ -60,6 +60,21 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, html);
     }
 
+    @Async
+    public void sendWelcomeEmail(String toEmail, String firstName) {
+        String subject = "Welcome to Travyn — You're verified! ✅";
+        String html = buildEmailTemplate(
+                firstName,
+                "You're in! Welcome to Travyn 🌍",
+                "Your account is verified and ready to go. You've already completed Aadhaar verification, "
+                        + "so you can start exploring trips and connecting with travel companions right away.",
+                "Explore Travyn",
+                "http://localhost:3000/dashboard",
+                "Your identity has been verified via Aadhaar. Your trust score has been boosted by 50 points."
+        );
+        sendHtmlEmail(toEmail, subject, html);
+    }
+
     private void sendHtmlEmail(String to, String subject, String htmlContent) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

@@ -2,6 +2,8 @@ package com.travyn.auth.controller;
 
 import com.travyn.auth.dto.*;
 import com.travyn.auth.service.AuthService;
+import com.travyn.kyc.dto.AadhaarPreviewResponse;
+import com.travyn.kyc.service.AadhaarVerificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -9,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -19,6 +22,25 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final AadhaarVerificationService aadhaarVerificationService;
+
+    @PostMapping("/aadhaar-preview")
+    @Operation(summary = "Parse Aadhaar QR for preview (no DB save) to generate registration token")
+    public ResponseEntity<?> previewAadhaar(@RequestParam("image") MultipartFile image) {
+        try {
+            AadhaarPreviewResponse response = aadhaarVerificationService.previewAadhaarQr(image);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/check-username")
+    @Operation(summary = "Check if a username is available")
+    public ResponseEntity<Map<String, Boolean>> checkUsername(@RequestParam("username") String username) {
+        boolean isAvailable = authService.isUsernameAvailable(username);
+        return ResponseEntity.ok(Map.of("available", isAvailable));
+    }
 
     @PostMapping("/register")
     @Operation(summary = "Register a new user")
@@ -32,6 +54,13 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Get current authenticated user")
+    public ResponseEntity<UserDTO> getCurrentUser(@org.springframework.security.core.annotation.AuthenticationPrincipal String email) {
+        UserDTO userDTO = authService.getCurrentUser(email);
+        return ResponseEntity.ok(userDTO);
     }
 
     @PostMapping("/refresh")

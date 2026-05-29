@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -22,6 +23,9 @@ public class User {
 
     @Column(nullable = false, unique = true, length = 255)
     private String email;
+
+    @Column(nullable = false, unique = true, length = 50)
+    private String username;
 
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
@@ -58,6 +62,20 @@ public class User {
     @Column(name = "failed_login_attempts", nullable = false)
     @Builder.Default
     private int failedLoginAttempts = 0;
+
+    @Column(name = "trust_score", nullable = false)
+    @Builder.Default
+    private int trustScore = 0;
+
+    @Column(name = "kyc_failed_attempts", nullable = false)
+    @Builder.Default
+    private int kycFailedAttempts = 0;
+
+    @Column(name = "kyc_lockout_until")
+    private Instant kycLockoutUntil;
+    
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
 
     @Column(name = "lockout_until")
     private Instant lockoutUntil;

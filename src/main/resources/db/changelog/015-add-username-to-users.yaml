@@ -1,0 +1,37 @@
+databaseChangeLog:
+  - changeSet:
+      id: 015-add-username-to-users
+      author: antigravity
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: username
+                  type: VARCHAR(50)
+                  
+  # Set a unique fallback username based on the first part of their email for existing users
+  # E.g., user@example.com -> user_5xyz
+  - changeSet:
+      id: 015-backfill-usernames
+      author: antigravity
+      changes:
+        - sql:
+            sql: >
+              UPDATE users 
+              SET username = LOWER(SPLIT_PART(email, '@', 1)) || '_' || SUBSTRING(CAST(id AS VARCHAR), 1, 4)
+              WHERE username IS NULL;
+
+  # Now enforce the unique constraint and NOT NULL
+  - changeSet:
+      id: 015-enforce-username-constraints
+      author: antigravity
+      changes:
+        - addNotNullConstraint:
+            tableName: users
+            columnName: username
+            columnDataType: VARCHAR(50)
+        - addUniqueConstraint:
+            tableName: users
+            columnNames: username
+            constraintName: uq_users_username

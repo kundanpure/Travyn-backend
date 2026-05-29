@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 014-add-dob-to-users
+      author: travyn
+      comment: "Add date_of_birth column to users table for KYC verification"
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: date_of_birth
+                  type: date

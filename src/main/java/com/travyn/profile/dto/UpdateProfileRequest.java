@@ -5,6 +5,7 @@ import com.travyn.profile.entity.FoodPreference;
 import com.travyn.profile.entity.SleepSchedule;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,6 +19,20 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UpdateProfileRequest {
+
+    /** Pre-KYC only: correct first name (locked after Aadhaar verification) */
+    @Size(max = 50, message = "First name must not exceed 50 characters")
+    @Pattern(regexp = "^[a-zA-Z ]*$", message = "First name can only contain letters and spaces")
+    private String firstName;
+
+    @Size(min = 3, max = 30, message = "Username must be between 3 and 30 characters")
+    @Pattern(regexp = "^[a-z0-9_.]+$", message = "Username can only contain lowercase letters, numbers, underscores, and periods")
+    private String username;
+
+    /** Pre-KYC only: correct last name (locked after Aadhaar verification) */
+    @Size(max = 50, message = "Last name must not exceed 50 characters")
+    @Pattern(regexp = "^[a-zA-Z ]*$", message = "Last name can only contain letters and spaces")
+    private String lastName;
 
     @Size(max = 500, message = "Bio must not exceed 500 characters")
     private String bio;

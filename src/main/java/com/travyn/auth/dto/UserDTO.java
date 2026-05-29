@@ -18,12 +18,16 @@ import java.util.UUID;
 public class UserDTO {
     private UUID id;
     private String email;
+    private String username;
     private String firstName;
     private String lastName;
     private Role role;
     private UserStatus status;
+    private boolean isVerified;
     private boolean emailVerified;
     private Gender gender;
+    private Integer age;
+    private String dob;
     /** How many more times the user can change their gender (max 2 total). */
     private int genderChangesRemaining;
     private Instant createdAt;

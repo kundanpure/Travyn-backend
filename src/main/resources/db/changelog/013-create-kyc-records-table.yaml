@@ -1,0 +1,70 @@
+databaseChangeLog:
+  - changeSet:
+      id: 013-create-kyc-records-table
+      author: travyn
+      comment: "Add kyc_records table and add kyc fields to users table"
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: trust_score
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: kyc_failed_attempts
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: kyc_lockout_until
+                  type: timestamp
+        - createTable:
+            tableName: kyc_records
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_kyc_records_user_id
+                    references: users(id)
+              - column:
+                  name: aadhaar_last4
+                  type: varchar(4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: verified_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: dob
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: gender
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: verified_at
+                  type: timestamp
+                  constraints:
+                    nullable: false

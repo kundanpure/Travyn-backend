@@ -23,5 +23,9 @@ databaseChangeLog:
       file: db/changelog/011-add-budget-to-trips.yaml
   - include:
       file: db/changelog/012-create-notifications-table.yaml
-
-
+  - include:
+      file: db/changelog/013-create-kyc-records-table.yaml
+  - include:
+      file: db/changelog/014-add-dob-to-users.yaml
+  - include:
+      file: db/changelog/015-add-username-to-users.yaml
