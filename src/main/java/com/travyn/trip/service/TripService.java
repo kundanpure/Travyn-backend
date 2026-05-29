@@ -245,6 +245,11 @@ public class TripService {
             throw new TripAccessDeniedException("This trip is not accepting new members");
         }
 
+        // Block join requests after the trip has started
+        if (!trip.getStartDate().isAfter(LocalDate.now())) {
+            throw new TripAccessDeniedException("This trip has already started and is no longer accepting new members");
+        }
+
         // Check if already a member
         tripMemberRepository.findByTripIdAndUserId(tripId, userId).ifPresent(existing -> {
             throw new AlreadyMemberException("You have already joined or requested to join this trip");
