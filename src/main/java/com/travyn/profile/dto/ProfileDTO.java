@@ -32,5 +32,8 @@ public class ProfileDTO {
     private boolean remoteWorker;
     private String profilePhotoUrl;
     private String coverPhotoUrl;
+    private Double latitude;
+    private Double longitude;
+    private String locationName;
     private int profileCompleteness;
 }

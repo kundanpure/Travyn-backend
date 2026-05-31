@@ -25,6 +25,8 @@ public class MatchCandidateDTO {
     private Integer budgetMin;
     private Integer budgetMax;
     private String personalityLabel; // Derived from profile
+    private String locationName;
+    private Double distanceInKm;
     
     private int compatibilityScore;
     private CompatibilityBreakdownDTO breakdown;

@@ -65,6 +65,11 @@ public class UpdateProfileRequest {
     @Size(max = 500, message = "Cover photo URL must not exceed 500 characters")
     private String coverPhotoUrl;
 
+    private Double latitude;
+    private Double longitude;
+    @Size(max = 255, message = "Location name must not exceed 255 characters")
+    private String locationName;
+
     /**
      * Optional gender update — enforced by service to max 2 changes lifetime.
      * Pass null to leave gender unchanged.

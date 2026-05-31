@@ -113,7 +113,7 @@ public class MatchingService {
 
             CompatibilityBreakdownDTO breakdown = compatibilityEngine.score(myProfile, myPrefs, targetProfile, targetPrefs);
             
-            MatchCandidateDTO dto = mapToCandidateDTO(candidate, targetProfile, breakdown);
+            MatchCandidateDTO dto = mapToCandidateDTO(candidate, myProfile, targetProfile, breakdown);
             matches.add(dto);
         }
 
@@ -169,7 +169,8 @@ public class MatchingService {
                     
                     // Score doesn't matter much here since they already matched, just pass dummy
                     CompatibilityBreakdownDTO dummy = CompatibilityBreakdownDTO.builder().overallScore(100).build();
-                    return mapToCandidateDTO(user, profile, dummy);
+                    Profile myProfile = profileRepository.findByUserId(userId).orElse(null);
+                    return mapToCandidateDTO(user, myProfile, profile, dummy);
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
@@ -185,21 +186,28 @@ public class MatchingService {
         return compatibilityEngine.score(myProfile, myPrefs, targetProfile, targetPrefs);
     }
 
-    private MatchCandidateDTO mapToCandidateDTO(User user, Profile profile, CompatibilityBreakdownDTO breakdown) {
+    private MatchCandidateDTO mapToCandidateDTO(User user, Profile myProfile, Profile targetProfile, CompatibilityBreakdownDTO breakdown) {
         Integer age = null;
         if (user.getDateOfBirth() != null) {
             age = Period.between(user.getDateOfBirth(), LocalDate.now()).getYears();
         }
         
         List<String> styles = new ArrayList<>();
-        if (profile.getTravelStyles() != null && !profile.getTravelStyles().isEmpty()) {
-            styles = Arrays.asList(profile.getTravelStyles().split(","));
+        if (targetProfile.getTravelStyles() != null && !targetProfile.getTravelStyles().isEmpty()) {
+            styles = Arrays.asList(targetProfile.getTravelStyles().split(","));
         }
 
         String personalityLabel = "Balanced";
-        if (profile.getPersonalityScale() != null) {
-            if (profile.getPersonalityScale() <= 3) personalityLabel = "Introvert";
-            else if (profile.getPersonalityScale() >= 8) personalityLabel = "Extrovert";
+        if (targetProfile.getPersonalityScale() != null) {
+            if (targetProfile.getPersonalityScale() <= 3) personalityLabel = "Introvert";
+            else if (targetProfile.getPersonalityScale() >= 8) personalityLabel = "Extrovert";
+        }
+        
+        Double distanceInKm = null;
+        if (myProfile != null && myProfile.getLatitude() != null && myProfile.getLongitude() != null &&
+            targetProfile.getLatitude() != null && targetProfile.getLongitude() != null) {
+            distanceInKm = calculateHaversineDistance(myProfile.getLatitude(), myProfile.getLongitude(),
+                                                      targetProfile.getLatitude(), targetProfile.getLongitude());
         }
 
         return MatchCandidateDTO.builder()
@@ -208,15 +216,28 @@ public class MatchingService {
                 .lastName(user.getLastName())
                 .username(user.getUsername())
                 .age(age)
-                .profilePhotoUrl(profile.getProfilePhotoUrl())
+                .profilePhotoUrl(targetProfile.getProfilePhotoUrl())
                 .trustScore(user.getTrustScore())
                 .travelStyles(styles)
-                .budgetMin(profile.getBudgetMin())
-                .budgetMax(profile.getBudgetMax())
+                .budgetMin(targetProfile.getBudgetMin())
+                .budgetMax(targetProfile.getBudgetMax())
                 .personalityLabel(personalityLabel)
+                .locationName(targetProfile.getLocationName())
+                .distanceInKm(distanceInKm)
                 .compatibilityScore(breakdown.getOverallScore())
                 .breakdown(breakdown)
                 .build();
+    }
+    
+    private double calculateHaversineDistance(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371; // Earth radius in km
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
 
     private MatchPreferencesDTO mapToDTO(MatchPreferences prefs) {

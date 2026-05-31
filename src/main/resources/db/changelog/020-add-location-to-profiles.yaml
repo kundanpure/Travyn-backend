@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: 020-add-location-to-profiles
+      author: antigravity
+      changes:
+        - addColumn:
+            tableName: profiles
+            columns:
+              - column:
+                  name: latitude
+                  type: double precision
+              - column:
+                  name: longitude
+                  type: double precision
+              - column:
+                  name: location_name
+                  type: varchar(255)

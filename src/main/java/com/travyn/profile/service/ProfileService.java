@@ -92,12 +92,11 @@ public class ProfileService {
         if (request.getRemoteWorker() != null) {
             profile.setRemoteWorker(request.getRemoteWorker());
         }
-        if (request.getProfilePhotoUrl() != null) {
-            profile.setProfilePhotoUrl(request.getProfilePhotoUrl().trim());
-        }
-        if (request.getCoverPhotoUrl() != null) {
-            profile.setCoverPhotoUrl(request.getCoverPhotoUrl().trim());
-        }
+        if (request.getProfilePhotoUrl() != null) profile.setProfilePhotoUrl(request.getProfilePhotoUrl());
+        if (request.getCoverPhotoUrl() != null) profile.setCoverPhotoUrl(request.getCoverPhotoUrl());
+        if (request.getLatitude() != null) profile.setLatitude(request.getLatitude());
+        if (request.getLongitude() != null) profile.setLongitude(request.getLongitude());
+        if (request.getLocationName() != null) profile.setLocationName(request.getLocationName());
 
         // Name change — only allowed before KYC verification
         boolean nameChanged = false;
@@ -219,6 +218,9 @@ public class ProfileService {
                 .remoteWorker(profile.isRemoteWorker())
                 .profilePhotoUrl(profile.getProfilePhotoUrl())
                 .coverPhotoUrl(profile.getCoverPhotoUrl())
+                .latitude(profile.getLatitude())
+                .longitude(profile.getLongitude())
+                .locationName(profile.getLocationName())
                 .profileCompleteness(calculateCompleteness(profile, user))
                 .build();
     }

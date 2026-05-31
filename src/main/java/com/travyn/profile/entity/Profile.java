@@ -62,6 +62,15 @@ public class Profile {
     @Column(name = "cover_photo_url", length = 500)
     private String coverPhotoUrl;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
+    @Column(name = "location_name", length = 255)
+    private String locationName;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
