@@ -3,8 +3,10 @@ package com.travyn.chat.controller;
 import com.travyn.auth.entity.User;
 import com.travyn.auth.repository.UserRepository;
 import com.travyn.chat.dto.ChatMessageDTO;
+import com.travyn.chat.dto.SendDirectMessageRequest;
 import com.travyn.chat.dto.SendMessageRequest;
 import com.travyn.chat.service.ChatService;
+import com.travyn.chat.service.DirectMessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -23,6 +25,7 @@ public class ChatWebSocketController {
 
     private final ChatService chatService;
     private final UserRepository userRepository;
+    private final DirectMessageService dmService;
 
     /**
      * Receives messages from clients at /app/chat/{tripId}
@@ -48,5 +51,30 @@ public class ChatWebSocketController {
         }
 
         chatService.sendMessage(user.getId(), tripId, request);
+    }
+
+    /**
+     * Receives direct messages from clients at /app/dm/{partnerId}
+     */
+    @MessageMapping("/dm/{partnerId}")
+    public void handleDirectMessage(
+            @DestinationVariable UUID partnerId,
+            @Payload SendDirectMessageRequest request,
+            SimpMessageHeaderAccessor headerAccessor) {
+
+        Principal principal = headerAccessor.getUser();
+        if (principal == null) {
+            log.warn("WebSocket DM received without authenticated principal");
+            return;
+        }
+
+        String email = principal.getName();
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            log.warn("WebSocket DM from unknown email: {}", email);
+            return;
+        }
+
+        dmService.sendMessage(user.getId(), partnerId, request);
     }
 }

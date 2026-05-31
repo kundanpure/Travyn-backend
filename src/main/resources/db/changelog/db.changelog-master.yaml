@@ -39,3 +39,5 @@ databaseChangeLog:
       file: db/changelog/019-create-match-connections-table.yaml
   - include:
       file: db/changelog/020-add-location-to-profiles.yaml
+  - include:
+      file: db/changelog/021-create-direct-messages-table.yaml
