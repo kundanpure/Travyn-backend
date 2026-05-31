@@ -83,7 +83,7 @@ public class NotificationService {
             String url = "/dashboard";
             if (type == NotificationType.JOIN_REQUEST || type == NotificationType.JOIN_APPROVED || type == NotificationType.JOIN_REJECTED) {
                 url = "/dashboard/trips/" + referenceId;
-            } else if (type == NotificationType.TRIP_MESSAGE) {
+            } else if (type == NotificationType.CHAT_MESSAGE) {
                 url = "/dashboard/trips/" + referenceId + "/chat";
             }
             webPushService.sendPushNotification(memberId, "Travyn Notification", message, url);

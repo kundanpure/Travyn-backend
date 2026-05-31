@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
+import org.apache.http.HttpResponse;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -28,10 +29,10 @@ public class WebPushService {
     private final PushSubscriptionRepository subscriptionRepository;
     private final ObjectMapper objectMapper;
 
-    @Value("${vapid.public.key:BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuB23T0w5g5Z6x3q8zX2w6k0w4=}")
+    @Value("${vapid.public.key}")
     private String publicKey;
 
-    @Value("${vapid.private.key:W2vY3O7o8S0H-M_G1v4-z8E6O9vY6Q9u0S0H-M_G1v4=}")
+    @Value("${vapid.private.key}")
     private String privateKey;
 
     @Value("${vapid.subject:mailto:admin@travyn.com}")
@@ -102,8 +103,8 @@ public class WebPushService {
                             sub.getAuth(),
                             payload
                     );
-                    nl.martijndwars.webpush.HttpResponse response = pushService.send(notification);
-                    if (response.getStatus() == 410 || response.getStatus() == 404) {
+                    HttpResponse response = pushService.send(notification);
+                    if (response.getStatusLine().getStatusCode() == 410 || response.getStatusLine().getStatusCode() == 404) {
                         // Gone, remove subscription
                         unsubscribe(sub.getEndpoint());
                     }
