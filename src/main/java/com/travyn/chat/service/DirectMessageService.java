@@ -127,18 +127,15 @@ public class DirectMessageService {
         
         DirectMessageDTO dto = mapToDTO(message, usersById);
 
-        // Send real-time message via STOMP to receiver
-        // Target: /user/{receiverId}/queue/messages
-        messagingTemplate.convertAndSendToUser(
-                receiverId.toString(),
-                "/queue/messages",
+        // Send real-time message via STOMP using direct topic based on UUID
+        messagingTemplate.convertAndSend(
+                "/topic/user." + receiverId + ".dm.messages",
                 dto
         );
         
         // Also send it to the sender's queue so their other open tabs can sync
-        messagingTemplate.convertAndSendToUser(
-                senderId.toString(),
-                "/queue/messages",
+        messagingTemplate.convertAndSend(
+                "/topic/user." + senderId + ".dm.messages",
                 dto
         );
 
@@ -166,9 +163,8 @@ public class DirectMessageService {
             dmRepository.saveAll(unread);
             
             // Notify partner that messages were read
-            messagingTemplate.convertAndSendToUser(
-                    partnerId.toString(),
-                    "/queue/read-receipts",
+            messagingTemplate.convertAndSend(
+                    "/topic/user." + partnerId + ".dm.read-receipts",
                     userId.toString() // partner knows that userId read their messages
             );
         }

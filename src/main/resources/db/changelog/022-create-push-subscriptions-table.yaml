@@ -1,0 +1,49 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260531-create-push-subscriptions
+      author: antigravity
+      changes:
+        - createTable:
+            tableName: push_subscriptions
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_push_subscriptions_user
+                    references: users(id)
+              - column:
+                  name: endpoint
+                  type: VARCHAR(1000)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: p256dh
+                  type: VARCHAR(500)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: auth
+                  type: VARCHAR(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_push_sub_user_id
+            tableName: push_subscriptions
+            columns:
+              - column:
+                  name: user_id

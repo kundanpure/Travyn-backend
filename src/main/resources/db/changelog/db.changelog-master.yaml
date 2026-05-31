@@ -41,3 +41,5 @@ databaseChangeLog:
       file: db/changelog/020-add-location-to-profiles.yaml
   - include:
       file: db/changelog/021-create-direct-messages-table.yaml
+  - include:
+      file: db/changelog/022-create-push-subscriptions-table.yaml

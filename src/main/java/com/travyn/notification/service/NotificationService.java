@@ -25,6 +25,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final TripMemberRepository tripMemberRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final WebPushService webPushService;
 
     @Transactional(readOnly = true)
     public List<NotificationDTO> getMyNotifications(UUID userId, int page, int size) {
@@ -77,6 +78,15 @@ public class NotificationService {
             // Broadcast to the user's specific notification topic
             NotificationDTO dto = mapToDTO(notification);
             messagingTemplate.convertAndSend("/topic/user." + memberId + ".notifications", dto);
+            
+            // Send Web Push Notification
+            String url = "/dashboard";
+            if (type == NotificationType.JOIN_REQUEST || type == NotificationType.JOIN_APPROVED || type == NotificationType.JOIN_REJECTED) {
+                url = "/dashboard/trips/" + referenceId;
+            } else if (type == NotificationType.TRIP_MESSAGE) {
+                url = "/dashboard/trips/" + referenceId + "/chat";
+            }
+            webPushService.sendPushNotification(memberId, "Travyn Notification", message, url);
         }
         
         log.debug("Sent {} notification to {} members for trip {}", type, memberIds.size(), tripId);
@@ -96,6 +106,13 @@ public class NotificationService {
 
         NotificationDTO dto = mapToDTO(notification);
         messagingTemplate.convertAndSend("/topic/user." + userId + ".notifications", dto);
+
+        // Send Web Push Notification
+        String url = "/dashboard";
+        if (type == NotificationType.DIRECT_MESSAGE) {
+            url = "/dashboard/messages?partnerId=" + referenceId;
+        }
+        webPushService.sendPushNotification(userId, "Travyn Notification", message, url);
 
         log.debug("Sent {} notification to user {}", type, userId);
     }
