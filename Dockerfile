@@ -28,8 +28,11 @@ COPY --from=builder /app/target/*.jar app.jar
 # Expose the application port
 EXPOSE 8080
 
-# JVM tuning for free-tier containers (512MB RAM)
-ENV JAVA_OPTS="-Xms128m -Xmx384m -XX:+UseG1GC -XX:MaxGCPauseMillis=100"
+# JVM tuning for free-tier containers (512MB RAM, 0.1 vCPU)
+# TieredStopAtLevel=1 → skips expensive JIT, much faster startup
+# UseSerialGC → better than G1GC on single low-CPU containers
+# security.egd → prevents Tomcat from blocking on /dev/random
+ENV JAVA_OPTS="-Xms128m -Xmx384m -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Djava.security.egd=file:/dev/./urandom"
 
 # Run the application
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
