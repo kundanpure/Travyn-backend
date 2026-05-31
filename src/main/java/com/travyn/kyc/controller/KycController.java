@@ -31,7 +31,8 @@ public class KycController {
             KycRecord record = aadhaarVerificationService.verifyAadhaarQr(user.getId(), image);
             return ResponseEntity.ok(Map.of("message", "KYC Successful", "recordId", record.getId()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error occurred"));
         }
     }
 
@@ -50,7 +51,8 @@ public class KycController {
             KycRecord record = aadhaarVerificationService.verifyIdentityRaw(user.getId(), qrData);
             return ResponseEntity.ok(Map.of("message", "KYC Successful", "recordId", record.getId()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error occurred"));
         }
     }
 }

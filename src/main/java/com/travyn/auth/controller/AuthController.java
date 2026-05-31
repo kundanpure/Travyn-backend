@@ -31,7 +31,8 @@ public class AuthController {
             AadhaarPreviewResponse response = aadhaarVerificationService.previewAadhaarQr(image);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error occurred"));
         }
     }
 
@@ -46,7 +47,8 @@ public class AuthController {
             AadhaarPreviewResponse response = aadhaarVerificationService.decodeRawAndPreview(qrData);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error occurred"));
         }
     }
 
