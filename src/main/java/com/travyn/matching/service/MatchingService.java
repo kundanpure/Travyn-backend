@@ -98,8 +98,6 @@ public class MatchingService {
                 .filter(u -> !u.getId().equals(userId))
                 .filter(u -> u.getStatus() == UserStatus.ACTIVE || u.getStatus() == UserStatus.KYC_VERIFIED)
                 .filter(u -> !actionedIds.contains(u.getId()))
-                // Example filter: only show users with trustScore >= 40
-                .filter(u -> u.getTrustScore() >= 40)
                 .collect(Collectors.toList());
 
         List<MatchCandidateDTO> matches = new ArrayList<>();
@@ -111,7 +109,7 @@ public class MatchingService {
             if (targetProfile == null || targetPrefs == null) continue;
             
             int completeness = profileService.calculateCompleteness(targetProfile, candidate);
-            if (completeness < 50) continue; // Skip incomplete profiles
+            if (completeness < 0) continue; // Skip incomplete profiles
 
             CompatibilityBreakdownDTO breakdown = compatibilityEngine.score(myProfile, myPrefs, targetProfile, targetPrefs);
             
