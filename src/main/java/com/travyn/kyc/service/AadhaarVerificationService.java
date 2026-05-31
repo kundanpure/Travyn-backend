@@ -49,17 +49,25 @@ public class AadhaarVerificationService {
         }
         if (bufferedImage == null) throw new RuntimeException("Invalid image file");
 
-        com.google.zxing.BinaryBitmap bitmap = new com.google.zxing.BinaryBitmap(
-            new com.google.zxing.common.HybridBinarizer(
-                new com.google.zxing.client.j2se.BufferedImageLuminanceSource(bufferedImage)));
-        com.google.zxing.Result result;
+        com.google.zxing.client.j2se.BufferedImageLuminanceSource source = new com.google.zxing.client.j2se.BufferedImageLuminanceSource(bufferedImage);
+        
+        java.util.Map<com.google.zxing.DecodeHintType, Object> hints = new java.util.EnumMap<>(com.google.zxing.DecodeHintType.class);
+        hints.put(com.google.zxing.DecodeHintType.TRY_HARDER, Boolean.TRUE);
+        hints.put(com.google.zxing.DecodeHintType.POSSIBLE_FORMATS, java.util.List.of(com.google.zxing.BarcodeFormat.QR_CODE));
+        
+        com.google.zxing.Result result = null;
         try {
-            java.util.Map<com.google.zxing.DecodeHintType, Object> hints = new java.util.EnumMap<>(com.google.zxing.DecodeHintType.class);
-            hints.put(com.google.zxing.DecodeHintType.TRY_HARDER, Boolean.TRUE);
-            hints.put(com.google.zxing.DecodeHintType.POSSIBLE_FORMATS, java.util.List.of(com.google.zxing.BarcodeFormat.QR_CODE));
+            // First try HybridBinarizer (good for normal images)
+            com.google.zxing.BinaryBitmap bitmap = new com.google.zxing.BinaryBitmap(new com.google.zxing.common.HybridBinarizer(source));
             result = new com.google.zxing.MultiFormatReader().decode(bitmap, hints);
         } catch (com.google.zxing.NotFoundException e) {
-            throw new RuntimeException("No valid QR code found in the image. Please ensure the QR is clear and well-lit.");
+            // Fallback to GlobalHistogramBinarizer (often better for sharp images with paper texture noise)
+            try {
+                com.google.zxing.BinaryBitmap fallbackBitmap = new com.google.zxing.BinaryBitmap(new com.google.zxing.common.GlobalHistogramBinarizer(source));
+                result = new com.google.zxing.MultiFormatReader().decode(fallbackBitmap, hints);
+            } catch (com.google.zxing.NotFoundException ex) {
+                throw new RuntimeException("No valid QR code found in the image. The image might have too much glare or paper texture. Please try the live camera scan.");
+            }
         } finally {
             bufferedImage.flush();
         }
