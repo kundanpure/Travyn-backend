@@ -33,3 +33,7 @@ databaseChangeLog:
       file: db/changelog/016-create-reputation-tables.yaml
   - include:
       file: db/changelog/017-create-trip-reviews-table.yaml
+  - include:
+      file: db/changelog/018-create-match-preferences-table.yaml
+  - include:
+      file: db/changelog/019-create-match-connections-table.yaml

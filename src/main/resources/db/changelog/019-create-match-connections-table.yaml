@@ -1,0 +1,69 @@
+databaseChangeLog:
+  - changeSet:
+      id: 019-create-match-connections-table
+      author: travyn
+      changes:
+        - createTable:
+            tableName: match_connections
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_match_conn_user
+                    references: users(id)
+              - column:
+                  name: target_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_match_conn_target
+                    references: users(id)
+              - column:
+                  name: action
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: score
+                  type: int
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: match_connections
+            columnNames: user_id, target_id
+            constraintName: uq_match_connections_user_target
+        - createIndex:
+            indexName: idx_match_conn_user
+            tableName: match_connections
+            columns:
+              - column:
+                  name: user_id
+        - createIndex:
+            indexName: idx_match_conn_target
+            tableName: match_connections
+            columns:
+              - column:
+                  name: target_id
+        - createIndex:
+            indexName: idx_match_conn_mutual
+            tableName: match_connections
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: target_id
+              - column:
+                  name: action

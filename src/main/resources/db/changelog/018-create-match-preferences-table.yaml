@@ -1,0 +1,58 @@
+databaseChangeLog:
+  - changeSet:
+      id: 018-create-match-preferences-table
+      author: travyn
+      changes:
+        - createTable:
+            tableName: match_preferences
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    foreignKeyName: fk_match_prefs_user
+                    references: users(id)
+              - column:
+                  name: smoking_habit
+                  type: varchar(20)
+              - column:
+                  name: drinking_habit
+                  type: varchar(20)
+              - column:
+                  name: trip_pace
+                  type: varchar(20)
+              - column:
+                  name: accommodation_style
+                  type: varchar(20)
+              - column:
+                  name: planning_style
+                  type: varchar(20)
+              - column:
+                  name: cleanliness
+                  type: varchar(20)
+              - column:
+                  name: social_energy
+                  type: varchar(20)
+              - column:
+                  name: travel_motivations
+                  type: varchar(200)
+              - column:
+                  name: travel_meanings
+                  type: varchar(200)
+              - column:
+                  name: trip_experience
+                  type: varchar(20)
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
