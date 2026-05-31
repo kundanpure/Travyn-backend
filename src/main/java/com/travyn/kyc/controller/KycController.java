@@ -34,4 +34,23 @@ public class KycController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+
+    @PostMapping("/aadhaar/qr/raw")
+    public ResponseEntity<?> verifyAadhaarQrRaw(
+            @AuthenticationPrincipal String email,
+            @RequestBody Map<String, String> payload) {
+        try {
+            String qrData = payload.get("qrData");
+            if (qrData == null || qrData.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "qrData is required"));
+            }
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+                    
+            KycRecord record = aadhaarVerificationService.verifyIdentityRaw(user.getId(), qrData);
+            return ResponseEntity.ok(Map.of("message", "KYC Successful", "recordId", record.getId()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }

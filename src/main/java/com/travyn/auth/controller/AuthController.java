@@ -35,6 +35,21 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/aadhaar-preview/raw")
+    @Operation(summary = "Parse Aadhaar QR string for preview (no DB save) to generate registration token")
+    public ResponseEntity<?> previewAadhaarRaw(@RequestBody Map<String, String> payload) {
+        try {
+            String qrData = payload.get("qrData");
+            if (qrData == null || qrData.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "qrData is required"));
+            }
+            AadhaarPreviewResponse response = aadhaarVerificationService.decodeRawAndPreview(qrData);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @GetMapping("/check-username")
     @Operation(summary = "Check if a username is available")
     public ResponseEntity<Map<String, Boolean>> checkUsername(@RequestParam("username") String username) {

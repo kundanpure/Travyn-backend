@@ -42,46 +42,93 @@ public class AadhaarVerificationService {
     private static final int MAX_FAILED_ATTEMPTS = 3;
     private static final int LOCKOUT_HOURS = 24;
 
+    private String extractQrText(MultipartFile qrImage) throws Exception {
+        java.awt.image.BufferedImage bufferedImage;
+        try (java.io.InputStream is = qrImage.getInputStream()) {
+            bufferedImage = javax.imageio.ImageIO.read(is);
+        }
+        if (bufferedImage == null) throw new RuntimeException("Invalid image file");
+
+        com.google.zxing.BinaryBitmap bitmap = new com.google.zxing.BinaryBitmap(
+            new com.google.zxing.common.HybridBinarizer(
+                new com.google.zxing.client.j2se.BufferedImageLuminanceSource(bufferedImage)));
+        com.google.zxing.Result result;
+        try {
+            java.util.Map<com.google.zxing.DecodeHintType, Object> hints = new java.util.EnumMap<>(com.google.zxing.DecodeHintType.class);
+            hints.put(com.google.zxing.DecodeHintType.TRY_HARDER, Boolean.TRUE);
+            hints.put(com.google.zxing.DecodeHintType.POSSIBLE_FORMATS, java.util.List.of(com.google.zxing.BarcodeFormat.QR_CODE));
+            result = new com.google.zxing.MultiFormatReader().decode(bitmap, hints);
+        } catch (com.google.zxing.NotFoundException e) {
+            throw new RuntimeException("No valid QR code found in the image. Please ensure the QR is clear and well-lit.");
+        } finally {
+            bufferedImage.flush();
+        }
+        return result.getText().trim();
+    }
+
     @Transactional
-    public AadhaarPreviewResponse previewAadhaarQr(MultipartFile qrImage) throws Exception {
-        // Parse QR without any DB writes
-        ParsedAadhaarData data = parseQrImage(qrImage);
-
-        // Check if this Aadhaar is already used by another account
-        if (kycRecordRepository.existsByAadhaarLast4AndStatus(data.aadhaarLast4, KycStatus.VERIFIED)) {
-            throw new RuntimeException("This Aadhaar card is already registered to another account.");
+    public AadhaarPreviewResponse previewAadhaarQr(MultipartFile qrImage) {
+        try {
+            String qrText = extractQrText(qrImage);
+            return decodeRawAndPreview(qrText);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to decode image: " + e.getMessage(), e);
         }
+    }
 
-        // Split name: last word = lastName, rest = firstName
-        String[] nameParts = data.verifiedName.trim().split("\\s+");
-        String firstName, lastName;
-        if (nameParts.length == 1) {
-            firstName = nameParts[0];
-            lastName = "";
-        } else {
-            lastName = nameParts[nameParts.length - 1];
-            firstName = data.verifiedName.substring(0, data.verifiedName.lastIndexOf(lastName)).trim();
+    @Transactional
+    public AadhaarPreviewResponse decodeRawAndPreview(String qrText) {
+        try {
+            ParsedAadhaarData data = parseQrText(qrText);
+
+            // Check if Aadhaar is already registered
+            if (kycRecordRepository.existsByAadhaarLast4AndStatus(data.aadhaarLast4(), KycStatus.VERIFIED)) {
+                throw new RuntimeException("This Aadhaar card is already registered to another account.");
+            }
+
+            // Split name: last word = lastName, rest = firstName
+            String[] nameParts = data.verifiedName.trim().split("\\s+");
+            String firstName, lastName;
+            if (nameParts.length == 1) {
+                firstName = nameParts[0];
+                lastName = "";
+            } else {
+                lastName = nameParts[nameParts.length - 1];
+                firstName = data.verifiedName.substring(0, data.verifiedName.lastIndexOf(lastName)).trim();
+            }
+
+            String previewToken = previewTokenService.generateToken(
+                    data.verifiedName, data.gender, data.dob, data.aadhaarLast4);
+
+            return AadhaarPreviewResponse.builder()
+                    .extractedName(data.verifiedName)
+                    .firstName(firstName)
+                    .lastName(lastName)
+                    .gender(data.gender)
+                    .dob(data.dob)
+                    .aadhaarLast4(data.aadhaarLast4)
+                    .previewToken(previewToken)
+                    .build();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to decode QR: " + e.getMessage(), e);
         }
-
-        String previewToken = previewTokenService.generateToken(
-                data.verifiedName, data.gender, data.dob, data.aadhaarLast4);
-
-        return AadhaarPreviewResponse.builder()
-                .extractedName(data.verifiedName)
-                .firstName(firstName)
-                .lastName(lastName)
-                .gender(data.gender)
-                .dob(data.dob)
-                .aadhaarLast4(data.aadhaarLast4)
-                .previewToken(previewToken)
-                .build();
     }
 
     /** Internal parsed data holder */
     private record ParsedAadhaarData(String aadhaarLast4, String verifiedName, String dob, String gender) {}
 
     @Transactional
-    public KycRecord verifyAadhaarQr(UUID userId, MultipartFile qrImage) throws Exception {
+    public KycRecord verifyAadhaarQr(UUID userId, MultipartFile qrImage) {
+        try {
+            String qrText = extractQrText(qrImage);
+            return verifyIdentityRaw(userId, qrText);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to verify image: " + e.getMessage(), e);
+        }
+    }
+
+    @Transactional
+    public KycRecord verifyIdentityRaw(UUID userId, String qrText) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -89,9 +136,9 @@ public class AadhaarVerificationService {
         if (user.getKycLockoutUntil() != null && user.getKycLockoutUntil().isAfter(Instant.now())) {
             throw new RuntimeException("KYC is locked out until " + user.getKycLockoutUntil());
         }
-
         try {
-            ParsedAadhaarData data = parseQrImage(qrImage);
+            // 1. Parse Aadhaar Data
+            ParsedAadhaarData data = parseQrText(qrText);
 
             // Check if Aadhaar is already registered
             if (kycRecordRepository.existsByAadhaarLast4AndStatus(data.aadhaarLast4(), KycStatus.VERIFIED)) {
@@ -145,29 +192,8 @@ public class AadhaarVerificationService {
         }
     }
 
-    /** Parses an Aadhaar QR image and returns extracted demographic data. No DB access. */
-    private ParsedAadhaarData parseQrImage(MultipartFile qrImage) throws Exception {
-        // 1. Zero-Retention In-Memory Processing
-        BufferedImage bufferedImage;
-        try (InputStream is = qrImage.getInputStream()) {
-            bufferedImage = ImageIO.read(is);
-        }
-        if (bufferedImage == null) throw new RuntimeException("Invalid image file");
-
-        // 2. ZXing Decode
-        BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(new BufferedImageLuminanceSource(bufferedImage)));
-        Result result;
-        try {
-            java.util.Map<com.google.zxing.DecodeHintType, Object> hints = new java.util.EnumMap<>(com.google.zxing.DecodeHintType.class);
-            hints.put(com.google.zxing.DecodeHintType.TRY_HARDER, Boolean.TRUE);
-            hints.put(com.google.zxing.DecodeHintType.POSSIBLE_FORMATS, java.util.List.of(com.google.zxing.BarcodeFormat.QR_CODE));
-            result = new MultiFormatReader().decode(bitmap, hints);
-        } catch (com.google.zxing.NotFoundException e) {
-            throw new RuntimeException("No valid QR code found in the image. Please ensure the QR is clear and well-lit.");
-        } finally {
-            bufferedImage.flush();
-        }
-        String qrText = result.getText().trim();
+    /** Parses an Aadhaar QR string and returns extracted demographic data. No DB access. */
+    private ParsedAadhaarData parseQrText(String qrText) throws Exception {
 
         String aadhaarLast4 = "0000";
         String verifiedName = "";
