@@ -32,11 +32,12 @@ public class DirectMessageService {
     private final MatchConnectionRepository matchConnectionRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final NotificationService notificationService;
+    private final com.travyn.trip.repository.TripMemberRepository tripMemberRepository;
 
     @Transactional(readOnly = true)
     public List<DirectMessageDTO> getMessages(UUID userId, UUID partnerId, int page, int size) {
-        // Validate they are mutual matches
-        validateMutualMatch(userId, partnerId);
+        // Validate messaging permission
+        validateMessagingPermission(userId, partnerId);
 
         Page<DirectMessage> messagePage = dmRepository.findConversationHistory(userId, partnerId, PageRequest.of(page, size));
         
@@ -109,7 +110,7 @@ public class DirectMessageService {
 
     @Transactional
     public DirectMessageDTO sendMessage(UUID senderId, UUID receiverId, SendDirectMessageRequest request) {
-        validateMutualMatch(senderId, receiverId);
+        validateMessagingPermission(senderId, receiverId);
 
         DirectMessage message = DirectMessage.builder()
                 .senderId(senderId)
@@ -170,6 +171,36 @@ public class DirectMessageService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, String> getConnectionStatus(UUID userId, UUID partnerId) {
+        if (matchConnectionRepository.findMutualMatchUserIds(userId).contains(partnerId)) {
+            return Map.of("status", "MUTUAL");
+        }
+        
+        if (matchConnectionRepository.hasPassed(userId, partnerId) || matchConnectionRepository.hasPassed(partnerId, userId)) {
+            return Map.of("status", "REJECTED");
+        }
+
+        List<DirectMessage> recentHistory = dmRepository.findConversationHistory(userId, partnerId, PageRequest.of(0, 10)).getContent();
+        boolean iSent = recentHistory.stream().anyMatch(msg -> msg.getSenderId().equals(userId));
+        boolean theySent = recentHistory.stream().anyMatch(msg -> msg.getSenderId().equals(partnerId));
+        
+        if (iSent && theySent) {
+            return Map.of("status", "MUTUAL");
+        } else if (iSent && !theySent) {
+            return Map.of("status", "PENDING_SENT");
+        } else if (theySent && !iSent) {
+            return Map.of("status", "PENDING_RECEIVED");
+        }
+        
+        java.time.LocalDate cutoffDate = java.time.LocalDate.now().minusDays(14);
+        if (tripMemberRepository.hasActiveSharedTrip(userId, partnerId, cutoffDate)) {
+            return Map.of("status", "CO_TRAVELER");
+        }
+
+        return Map.of("status", "NONE");
+    }
+
     private DirectMessageDTO mapToDTO(DirectMessage msg, Map<UUID, User> usersById) {
         User sender = usersById.get(msg.getSenderId());
         String name = "Unknown";
@@ -192,10 +223,37 @@ public class DirectMessageService {
                 .build();
     }
 
-    private void validateMutualMatch(UUID userId, UUID partnerId) {
+    private void validateMessagingPermission(UUID userId, UUID partnerId) {
+        // 1. Check if Mutual Matches (Permanent Connection)
         List<UUID> mutualIds = matchConnectionRepository.findMutualMatchUserIds(userId);
-        if (!mutualIds.contains(partnerId)) {
-            throw new IllegalArgumentException("You can only message mutual matches");
+        if (mutualIds.contains(partnerId)) {
+            return; // ALLOWED
         }
+
+        // 2. Check if Receiver rejected Sender
+        if (matchConnectionRepository.hasPassed(partnerId, userId)) {
+            throw new IllegalArgumentException("You can no longer message this user.");
+        }
+
+        // 3. Check if they are Co-Travelers in an active trip
+        java.time.LocalDate cutoffDate = java.time.LocalDate.now().minusDays(14);
+        if (tripMemberRepository.hasActiveSharedTrip(userId, partnerId, cutoffDate)) {
+            // Check 1-Message Limit Spam Filter
+            // Find if sender has already sent an unread message and receiver hasn't replied
+            List<DirectMessage> recentHistory = dmRepository.findConversationHistory(userId, partnerId, PageRequest.of(0, 10)).getContent();
+            boolean hasPendingMessage = recentHistory.stream()
+                    .anyMatch(msg -> msg.getSenderId().equals(userId) && !msg.isRead());
+            boolean receiverHasReplied = recentHistory.stream()
+                    .anyMatch(msg -> msg.getSenderId().equals(partnerId));
+            
+            if (hasPendingMessage && !receiverHasReplied) {
+                throw new IllegalArgumentException("Request sent. You can send more messages once they accept.");
+            }
+            
+            return; // ALLOWED (First Request)
+        }
+
+        // 4. Blocked
+        throw new IllegalArgumentException("You can only message mutual matches or co-travelers.");
     }
 }

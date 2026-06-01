@@ -24,6 +24,9 @@ public interface MatchConnectionRepository extends JpaRepository<MatchConnection
     @Query("SELECT mc.user.id FROM MatchConnection mc WHERE mc.target.id = :userId AND mc.action = 'CONNECT'")
     List<UUID> findUsersWhoConnectedWithMe(@Param("userId") UUID userId);
 
+    @Query("SELECT COUNT(mc) > 0 FROM MatchConnection mc WHERE mc.user.id = :userId AND mc.target.id = :targetId AND mc.action = 'PASS'")
+    boolean hasPassed(@Param("userId") UUID userId, @Param("targetId") UUID targetId);
+
     // Find mutual matches: I connected with them AND they connected with me
     @Query("SELECT mc1.target.id FROM MatchConnection mc1 " +
            "INNER JOIN MatchConnection mc2 ON mc1.target.id = mc2.user.id " +

@@ -65,6 +65,15 @@ public class DirectMessageController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/{partnerId}/status")
+    @Operation(summary = "Get the connection/messaging status with a partner")
+    public ResponseEntity<java.util.Map<String, String>> getConnectionStatus(
+            @PathVariable UUID partnerId,
+            @AuthenticationPrincipal String email) {
+        User user = findUserByEmail(email);
+        return ResponseEntity.ok(dmService.getConnectionStatus(user.getId(), partnerId));
+    }
+
     private User findUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));

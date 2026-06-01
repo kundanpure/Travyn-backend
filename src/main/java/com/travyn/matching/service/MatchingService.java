@@ -127,29 +127,33 @@ public class MatchingService {
         User target = userRepository.findById(targetId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target not found"));
 
-        if (connectionRepository.findByUserIdAndTargetId(userId, targetId).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Action already recorded");
+        MatchConnection conn = connectionRepository.findByUserIdAndTargetId(userId, targetId).orElse(null);
+
+        if (conn != null) {
+            // Update existing connection (e.g. unblocking or accepting message request)
+            conn.setAction(action);
+            // Optionally update score if needed, but keeping old score is fine.
+        } else {
+            // Calculate score at the time of connection
+            int score = 0;
+            try {
+                Profile myProfile = profileRepository.findByUserId(userId).orElse(null);
+                MatchPreferences myPrefs = prefsRepository.findByUserId(userId).orElse(null);
+                Profile targetProfile = profileRepository.findByUserId(targetId).orElse(null);
+                MatchPreferences targetPrefs = prefsRepository.findByUserId(targetId).orElse(null);
+                
+                if (myProfile != null && targetProfile != null) {
+                    score = compatibilityEngine.score(myProfile, myPrefs, targetProfile, targetPrefs).getOverallScore();
+                }
+            } catch (Exception ignored) {}
+
+            conn = MatchConnection.builder()
+                    .user(me)
+                    .target(target)
+                    .action(action)
+                    .score(score)
+                    .build();
         }
-
-        // Calculate score at the time of connection
-        int score = 0;
-        try {
-            Profile myProfile = profileRepository.findByUserId(userId).orElse(null);
-            MatchPreferences myPrefs = prefsRepository.findByUserId(userId).orElse(null);
-            Profile targetProfile = profileRepository.findByUserId(targetId).orElse(null);
-            MatchPreferences targetPrefs = prefsRepository.findByUserId(targetId).orElse(null);
-            
-            if (myProfile != null && targetProfile != null) {
-                score = compatibilityEngine.score(myProfile, myPrefs, targetProfile, targetPrefs).getOverallScore();
-            }
-        } catch (Exception ignored) {}
-
-        MatchConnection conn = MatchConnection.builder()
-                .user(me)
-                .target(target)
-                .action(action)
-                .score(score)
-                .build();
                 
         connectionRepository.save(conn);
         log.info("User {} actioned {} on {}", userId, action, targetId);
