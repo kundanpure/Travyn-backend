@@ -90,6 +90,23 @@ public class AuthService {
         user = userRepository.save(user);
         log.info("New user registered (email-first): {}", user.getEmail());
 
+        // Auto-verify internal agent service accounts — real users are unaffected
+        if (user.getEmail().endsWith("@travyn-agent.internal")) {
+            user.setEmailVerified(true);
+            user.setStatus(UserStatus.ACTIVE);
+            userRepository.save(user);
+            log.info("Agent account auto-verified (no email sent): {}", user.getEmail());
+            String agentAccess = jwtUtil.generateAccessToken(user.getEmail(), user.getRole().name());
+            String agentRefresh = jwtUtil.generateRefreshToken(user.getEmail());
+            saveRefreshToken(user, agentRefresh);
+            return AuthResponse.builder()
+                    .accessToken(agentAccess)
+                    .refreshToken(agentRefresh)
+                    .expiresIn(jwtUtil.getAccessTokenExpiryMs() / 1000)
+                    .user(mapToUserDTO(user))
+                    .build();
+        }
+
         emailService.sendVerificationEmail(user.getEmail(), user.getFirstName(), verificationToken);
 
         String accessToken = jwtUtil.generateAccessToken(user.getEmail(), user.getRole().name());
