@@ -39,6 +39,8 @@ public class GlobalExceptionHandler {
                 .stream()
                 .map(this::mapFieldError)
                 .toList();
+                
+        log.error("Validation failed: {}", details);
 
         ErrorResponse response = ErrorResponse.builder()
                 .status(HttpStatus.BAD_REQUEST.value())
