@@ -208,6 +208,10 @@ public class AadhaarVerificationService {
         String dobRaw = "";
         String genderRaw = "";
 
+        if (qrText.trim().startsWith("[\"5005\"")) {
+            throw new RuntimeException("DigiLocker QR codes are not supported. Please use the official e-Aadhaar PDF or scan a physical Aadhaar card.");
+        }
+
         if (qrText.startsWith("<?xml")) {
             // V1 XML Format
             java.util.regex.Matcher uidMatcher = java.util.regex.Pattern.compile("uid=\"([^\"]+)\"").matcher(qrText);
