@@ -22,6 +22,7 @@ import com.travyn.trip.exception.TripNotFoundException;
 import com.travyn.trip.repository.TripMemberRepository;
 import com.travyn.trip.repository.TripRepository;
 import com.travyn.trip.repository.TripReviewRepository;
+import com.travyn.profile.repository.ProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -45,6 +46,7 @@ public class TripService {
     private final TripReviewRepository tripReviewRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final ProfileRepository profileRepository;
 
     private static final String TRIP_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int TRIP_CODE_LENGTH = 8;
@@ -504,6 +506,13 @@ public class TripService {
     }
 
     private TripMemberDTO mapToTripMemberDTO(TripMember member, User user) {
+        String photoUrl = null;
+        if (user != null) {
+            photoUrl = profileRepository.findByUserId(user.getId())
+                    .map(com.travyn.profile.entity.Profile::getProfilePhotoUrl)
+                    .orElse(null);
+        }
+
         return TripMemberDTO.builder()
                 .userId(member.getUserId())
                 .firstName(user != null ? user.getFirstName() : null)
@@ -511,6 +520,7 @@ public class TripService {
                 .role(member.getMemberRole())
                 .status(member.getMemberStatus())
                 .joinedAt(member.getJoinedAt())
+                .profilePhotoUrl(photoUrl)
                 .build();
     }
 

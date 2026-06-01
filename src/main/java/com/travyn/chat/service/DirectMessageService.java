@@ -11,6 +11,8 @@ import com.travyn.chat.repository.DirectMessageRepository;
 import com.travyn.matching.repository.MatchConnectionRepository;
 import com.travyn.notification.entity.NotificationType;
 import com.travyn.notification.service.NotificationService;
+import com.travyn.profile.repository.ProfileRepository;
+import com.travyn.trip.repository.TripMemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -32,7 +34,8 @@ public class DirectMessageService {
     private final MatchConnectionRepository matchConnectionRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final NotificationService notificationService;
-    private final com.travyn.trip.repository.TripMemberRepository tripMemberRepository;
+    private final TripMemberRepository tripMemberRepository;
+    private final ProfileRepository profileRepository;
 
     @Transactional(readOnly = true)
     public List<DirectMessageDTO> getMessages(UUID userId, UUID partnerId, int page, int size) {
@@ -85,6 +88,9 @@ public class DirectMessageService {
                     .findFirst().orElse(null);
                     
             int unreadCount = unreadCountByPartner.getOrDefault(partnerId, 0L).intValue();
+            String photoUrl = profileRepository.findByUserId(partnerId)
+                    .map(com.travyn.profile.entity.Profile::getProfilePhotoUrl)
+                    .orElse(null);
             
             inbox.add(DirectMessageInboxDTO.builder()
                     .partnerId(partnerId)
@@ -94,6 +100,7 @@ public class DirectMessageService {
                     .latestMessageType(latestMsg != null ? latestMsg.getMessageType() : MessageType.TEXT)
                     .latestMessageAt(latestMsg != null ? latestMsg.getCreatedAt() : null)
                     .unreadCount(unreadCount)
+                    .partnerProfilePhotoUrl(photoUrl)
                     .build());
         }
         

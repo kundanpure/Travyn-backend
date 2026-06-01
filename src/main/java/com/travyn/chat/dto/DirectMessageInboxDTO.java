@@ -21,4 +21,5 @@ public class DirectMessageInboxDTO {
     private MessageType latestMessageType;
     private Instant latestMessageAt;
     private int unreadCount;
+    private String partnerProfilePhotoUrl;
 }

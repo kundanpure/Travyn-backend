@@ -22,4 +22,5 @@ public class TripMemberDTO {
     private MemberRole role;
     private MemberStatus status;
     private Instant joinedAt;
+    private String profilePhotoUrl;
 }

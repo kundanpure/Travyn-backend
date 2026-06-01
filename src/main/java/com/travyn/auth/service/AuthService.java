@@ -15,6 +15,7 @@ import com.travyn.kyc.entity.KycRecord;
 import com.travyn.kyc.entity.KycStatus;
 import com.travyn.kyc.repository.KycRecordRepository;
 import com.travyn.kyc.service.PreviewTokenService;
+import com.travyn.profile.repository.ProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -39,6 +40,7 @@ public class AuthService {
     private final ModelMapper modelMapper;
     private final PreviewTokenService previewTokenService;
     private final KycRecordRepository kycRecordRepository;
+    private final ProfileRepository profileRepository;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCKOUT_MINUTES = 15;
@@ -382,6 +384,10 @@ public class AuthService {
             dob = user.getDateOfBirth().toString();
         }
 
+        String photoUrl = profileRepository.findByUserId(user.getId())
+                .map(com.travyn.profile.entity.Profile::getProfilePhotoUrl)
+                .orElse(null);
+
         return UserDTO.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -397,6 +403,7 @@ public class AuthService {
                 .dob(dob)
                 .genderChangesRemaining(changesRemaining)
                 .createdAt(user.getCreatedAt())
+                .profilePhotoUrl(photoUrl)
                 .build();
     }
 }

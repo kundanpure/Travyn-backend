@@ -31,5 +31,6 @@ public class UserDTO {
     /** How many more times the user can change their gender (max 2 total). */
     private int genderChangesRemaining;
     private Instant createdAt;
+    private String profilePhotoUrl;
 }
 
