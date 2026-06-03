@@ -260,17 +260,27 @@ public class TripService {
                                             int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        TripStatus status = TripStatus.OPEN;
+        List<TripStatus> statuses = null;
         boolean isUpcoming = false;
 
         if ("COMPLETED".equalsIgnoreCase(statusFilter)) {
-            status = TripStatus.COMPLETED;
+            statuses = List.of(TripStatus.COMPLETED);
         } else if ("UPCOMING".equalsIgnoreCase(statusFilter)) {
             isUpcoming = true;
+            statuses = List.of(TripStatus.OPEN, TripStatus.FULL);
+        } else if ("OPEN".equalsIgnoreCase(statusFilter)) {
+            statuses = List.of(TripStatus.OPEN);
+        } else if ("CLOSED".equalsIgnoreCase(statusFilter)) {
+            statuses = List.of(TripStatus.FULL, TripStatus.CANCELLED);
+        } else if ("ALL".equalsIgnoreCase(statusFilter)) {
+            statuses = null;
+        } else {
+            // Default to OPEN if an invalid string is provided
+            statuses = List.of(TripStatus.OPEN);
         }
 
         Page<Trip> trips = tripRepository.discoverTrips(
-                status, destination, type, fromDate, toDate, isVerifiedWoman, isUpcoming, pageRequest);
+                statuses, destination, type, fromDate, toDate, isVerifiedWoman, isUpcoming, pageRequest);
 
         return trips.map(trip -> {
             User creator = userRepository.findById(trip.getCreatorId()).orElse(null);

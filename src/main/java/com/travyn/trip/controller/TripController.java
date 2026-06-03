@@ -48,7 +48,7 @@ public class TripController {
             @RequestParam(required = false) TripType type,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-            @RequestParam(required = false, defaultValue = "OPEN") String statusFilter,
+            @RequestParam(required = false, defaultValue = "ALL") String statusFilter,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         
