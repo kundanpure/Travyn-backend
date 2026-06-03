@@ -2,8 +2,12 @@ package com.travyn.reputation.service;
 
 import com.travyn.auth.entity.User;
 import com.travyn.auth.repository.UserRepository;
+import com.travyn.notification.entity.NotificationType;
+import com.travyn.notification.service.NotificationService;
+import com.travyn.profile.repository.ProfileRepository;
 import com.travyn.reputation.dto.ReviewDTO;
 import com.travyn.reputation.dto.ReviewRequest;
+import com.travyn.reputation.dto.ReviewWindowDTO;
 import com.travyn.reputation.dto.TrustScoreDTO;
 import com.travyn.reputation.entity.Review;
 import com.travyn.reputation.entity.TrustScore;
@@ -19,7 +23,9 @@ import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,7 +40,13 @@ public class ReputationService {
     private final UserRepository userRepository;
     private final TripRepository tripRepository;
     private final TripMemberRepository tripMemberRepository;
+    private final NotificationService notificationService;
+    private final ProfileRepository profileRepository;
     private final ModelMapper modelMapper;
+
+    /** Review window opens 24 hours after trip end date, closes 14 days later */
+    private static final int WINDOW_OPEN_DELAY_DAYS = 1;
+    private static final int WINDOW_DURATION_DAYS = 14;
 
     @Transactional
     public ReviewDTO submitReview(String reviewerEmail, String tripId, String revieweeId, ReviewRequest request) {
@@ -57,6 +69,18 @@ public class ReputationService {
             throw new RuntimeException("Both users must be approved members of the trip to review");
         }
 
+        // ── Review Window Enforcement ──
+        LocalDateTime windowOpens = trip.getEndDate().plusDays(WINDOW_OPEN_DELAY_DAYS).atStartOfDay();
+        LocalDateTime windowCloses = windowOpens.plusDays(WINDOW_DURATION_DAYS);
+        LocalDateTime now = LocalDateTime.now();
+
+        if (now.isBefore(windowOpens)) {
+            throw new RuntimeException("Review window hasn't opened yet — it opens 24 hours after the trip ends.");
+        }
+        if (now.isAfter(windowCloses)) {
+            throw new RuntimeException("Review window has closed. Reviews were accepted until " + windowCloses.toLocalDate() + ".");
+        }
+
         // Check if a review already exists
         if (reviewRepository.findByTripIdAndReviewerIdAndRevieweeId(tId, reviewer.getId(), UUID.fromString(revieweeId)).isPresent()) {
             throw new RuntimeException("You have already reviewed this user for this trip");
@@ -77,6 +101,14 @@ public class ReputationService {
 
         reviewRepository.save(review);
 
+        // ── Notify the reviewee that they were reviewed ──
+        notificationService.notifyUser(
+                reviewee.getId(),
+                reviewer.getFirstName() + " has reviewed you from trip \"" + trip.getTitle() + "\". Review them back!",
+                NotificationType.REVIEW_RECEIVED,
+                tId
+        );
+
         // Check if the mutual review exists
         Optional<Review> mutualReview = reviewRepository.findByTripIdAndReviewerIdAndRevieweeId(tId, UUID.fromString(revieweeId), reviewer.getId());
         if (mutualReview.isPresent()) {
@@ -90,9 +122,96 @@ public class ReputationService {
             // Recompute TrustScores since new reviews are published
             recomputeTrustScore(reviewer.getId().toString());
             recomputeTrustScore(revieweeId);
+
+            // Notify both that mutual reviews are now published
+            notificationService.notifyUser(
+                    reviewer.getId(),
+                    "Your mutual reviews for \"" + trip.getTitle() + "\" are now published! 🎉",
+                    NotificationType.REVIEWS_PUBLISHED,
+                    tId
+            );
+            notificationService.notifyUser(
+                    reviewee.getId(),
+                    "Your mutual reviews for \"" + trip.getTitle() + "\" are now published! 🎉",
+                    NotificationType.REVIEWS_PUBLISHED,
+                    tId
+            );
         }
 
         return convertToDto(review);
+    }
+
+    /**
+     * Returns the review window status for a given trip and user.
+     * Shows window open/close times, and per-peer review status.
+     */
+    @Transactional(readOnly = true)
+    public ReviewWindowDTO getReviewWindowStatus(String tripId, String userEmail) {
+        UUID tId = UUID.fromString(tripId);
+        Trip trip = tripRepository.findById(tId)
+                .orElseThrow(() -> new RuntimeException("Trip not found"));
+
+        User currentUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        LocalDateTime windowOpens = trip.getEndDate().plusDays(WINDOW_OPEN_DELAY_DAYS).atStartOfDay();
+        LocalDateTime windowCloses = windowOpens.plusDays(WINDOW_DURATION_DAYS);
+        LocalDateTime now = LocalDateTime.now();
+        boolean windowOpen = !now.isBefore(windowOpens) && !now.isAfter(windowCloses);
+
+        // Get all approved members of the trip (excluding current user)
+        List<TripMember> members = tripMemberRepository.findByTripIdAndMemberStatus(tId, MemberStatus.APPROVED);
+
+        // Get all reviews for this trip
+        List<Review> allReviews = reviewRepository.findByTripId(tId);
+
+        List<ReviewWindowDTO.PeerReviewStatus> peerStatuses = members.stream()
+                .filter(m -> !m.getUserId().equals(currentUser.getId()))
+                .map(m -> {
+                    User peerUser = userRepository.findById(m.getUserId()).orElse(null);
+                    String peerName = peerUser != null
+                            ? peerUser.getFirstName() + " " + peerUser.getLastName()
+                            : "Unknown";
+                    String photoUrl = peerUser != null
+                            ? profileRepository.findByUserId(peerUser.getId())
+                                    .map(p -> p.getProfilePhotoUrl())
+                                    .orElse(null)
+                            : null;
+
+                    // Did I review this peer?
+                    Optional<Review> myReview = allReviews.stream()
+                            .filter(r -> r.getReviewer().getId().equals(currentUser.getId())
+                                    && r.getReviewee().getId().equals(m.getUserId()))
+                            .findFirst();
+
+                    // Did they review me?
+                    Optional<Review> theirReview = allReviews.stream()
+                            .filter(r -> r.getReviewer().getId().equals(m.getUserId())
+                                    && r.getReviewee().getId().equals(currentUser.getId()))
+                            .findFirst();
+
+                    boolean iReviewedThem = myReview.isPresent();
+                    boolean theyReviewedMe = theirReview.isPresent();
+                    boolean isPublished = myReview.map(Review::getIsPublished).orElse(false)
+                            || theirReview.map(Review::getIsPublished).orElse(false);
+
+                    return ReviewWindowDTO.PeerReviewStatus.builder()
+                            .peerId(m.getUserId().toString())
+                            .peerName(peerName)
+                            .profilePhotoUrl(photoUrl)
+                            .iReviewedThem(iReviewedThem)
+                            .theyReviewedMe(theyReviewedMe)
+                            .isPublished(isPublished)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        return ReviewWindowDTO.builder()
+                .windowOpens(windowOpens)
+                .windowCloses(windowCloses)
+                .windowOpen(windowOpen)
+                .peers(peerStatuses)
+                .build();
     }
 
     public TrustScoreDTO getTrustScore(String userId) {

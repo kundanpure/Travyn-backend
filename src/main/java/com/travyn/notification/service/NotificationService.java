@@ -111,6 +111,10 @@ public class NotificationService {
         String url = "/dashboard";
         if (type == NotificationType.DIRECT_MESSAGE) {
             url = "/dashboard/messages?partnerId=" + referenceId;
+        } else if (type == NotificationType.REVIEW_RECEIVED
+                || type == NotificationType.REVIEWS_PUBLISHED
+                || type == NotificationType.REVIEW_AUTO_PUBLISHED) {
+            url = "/dashboard/trips/" + referenceId;
         }
         webPushService.sendPushNotification(userId, "Travyn Notification", message, url);
 

@@ -3,6 +3,7 @@ package com.travyn.reputation.repository;
 import com.travyn.reputation.entity.Review;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,4 +16,8 @@ public interface ReviewRepository extends JpaRepository<Review, String> {
     List<Review> findByTripIdAndReviewerId(UUID tripId, UUID reviewerId);
     
     List<Review> findByRevieweeIdAndIsPublishedTrue(UUID revieweeId);
+
+    List<Review> findByTripId(UUID tripId);
+
+    List<Review> findByIsPublishedFalse();
 }

@@ -2,6 +2,7 @@ package com.travyn.reputation.controller;
 
 import com.travyn.reputation.dto.ReviewDTO;
 import com.travyn.reputation.dto.ReviewRequest;
+import com.travyn.reputation.dto.ReviewWindowDTO;
 import com.travyn.reputation.dto.TrustScoreDTO;
 import com.travyn.reputation.service.ReputationService;
 import jakarta.validation.Valid;
@@ -28,6 +29,14 @@ public class ReputationController {
         
         ReviewDTO review = reputationService.submitReview(reviewerEmail, tripId, revieweeId, request);
         return ResponseEntity.ok(review);
+    }
+
+    @GetMapping("/trips/{tripId}/review-window")
+    public ResponseEntity<ReviewWindowDTO> getReviewWindow(
+            @AuthenticationPrincipal String userEmail,
+            @PathVariable String tripId) {
+        ReviewWindowDTO windowStatus = reputationService.getReviewWindowStatus(tripId, userEmail);
+        return ResponseEntity.ok(windowStatus);
     }
 
     @GetMapping("/users/{userId}/trust-score")
