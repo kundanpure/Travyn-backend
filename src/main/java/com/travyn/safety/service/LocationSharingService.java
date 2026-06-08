@@ -156,6 +156,12 @@ public class LocationSharingService {
             return PublicLocationDTO.builder().expired(true).message("This tracking link has expired.").build();
         }
 
+        TripLocationSharing sharing = sharingRepository.findByUserIdAndTripId(link.getUserId(), link.getTripId())
+                .orElse(null);
+        if (sharing == null || !sharing.isActive()) {
+            return PublicLocationDTO.builder().expired(true).message("The traveler has paused their location sharing.").build();
+        }
+
         User traveler = userRepository.findById(link.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
         Trip trip = tripRepository.findById(link.getTripId())
