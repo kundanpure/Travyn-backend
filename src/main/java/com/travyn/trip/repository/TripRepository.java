@@ -23,6 +23,7 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
 
     @Query("SELECT t FROM Trip t WHERE (:status IS NULL OR t.status IN :status) " +
             "AND (:isUpcoming = false OR t.startDate > current_date) " +
+            "AND (:isOngoing = false OR (t.startDate <= current_date AND t.endDate >= current_date)) " +
             "AND (:destination IS NULL OR LOWER(t.destination) LIKE LOWER(CONCAT('%', CAST(:destination AS string), '%'))) " +
             "AND (:tripType IS NULL OR t.tripType = :tripType) " +
             "AND (:fromDate IS NULL OR t.startDate >= :fromDate) " +
@@ -36,5 +37,6 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
             @Param("toDate") LocalDate toDate,
             @Param("isVerifiedWoman") boolean isVerifiedWoman,
             @Param("isUpcoming") boolean isUpcoming,
+            @Param("isOngoing") boolean isOngoing,
             Pageable pageable);
 }

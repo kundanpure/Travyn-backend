@@ -262,11 +262,15 @@ public class TripService {
 
         List<TripStatus> statuses = null;
         boolean isUpcoming = false;
+        boolean isOngoing = false;
 
         if ("COMPLETED".equalsIgnoreCase(statusFilter)) {
             statuses = List.of(TripStatus.COMPLETED);
         } else if ("UPCOMING".equalsIgnoreCase(statusFilter)) {
             isUpcoming = true;
+            statuses = List.of(TripStatus.OPEN, TripStatus.FULL);
+        } else if ("ONGOING".equalsIgnoreCase(statusFilter)) {
+            isOngoing = true;
             statuses = List.of(TripStatus.OPEN, TripStatus.FULL);
         } else if ("OPEN".equalsIgnoreCase(statusFilter)) {
             statuses = List.of(TripStatus.OPEN);
@@ -280,7 +284,7 @@ public class TripService {
         }
 
         Page<Trip> trips = tripRepository.discoverTrips(
-                statuses, destination, type, fromDate, toDate, isVerifiedWoman, isUpcoming, pageRequest);
+                statuses, destination, type, fromDate, toDate, isVerifiedWoman, isUpcoming, isOngoing, pageRequest);
 
         return trips.map(trip -> {
             User creator = userRepository.findById(trip.getCreatorId()).orElse(null);
