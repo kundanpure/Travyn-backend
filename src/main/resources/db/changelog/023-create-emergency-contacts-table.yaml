@@ -1,0 +1,55 @@
+databaseChangeLog:
+  - changeSet:
+      id: 023-create-emergency-contacts-table
+      author: travyn
+      changes:
+        - createTable:
+            tableName: emergency_contacts
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: phone_number
+                  type: varchar(20)
+              - column:
+                  name: email
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: relationship
+                  type: varchar(50)
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: emergency_contacts
+            baseColumnNames: user_id
+            constraintName: fk_emergency_contacts_user
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_emergency_contacts_user_id
+            tableName: emergency_contacts
+            columns:
+              - column:
+                  name: user_id

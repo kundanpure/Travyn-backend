@@ -1,0 +1,215 @@
+databaseChangeLog:
+  - changeSet:
+      id: 024-create-trip-location-sharing-table
+      author: travyn
+      changes:
+        - createTable:
+            tableName: trip_location_sharing
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: trip_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_active
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: accommodation_lat
+                  type: double precision
+              - column:
+                  name: accommodation_lng
+                  type: double precision
+              - column:
+                  name: accommodation_label
+                  type: varchar(200)
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: trip_location_sharing
+            baseColumnNames: user_id
+            constraintName: fk_trip_location_sharing_user
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: trip_location_sharing
+            baseColumnNames: trip_id
+            constraintName: fk_trip_location_sharing_trip
+            referencedTableName: trips
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: trip_location_sharing
+            columnNames: user_id, trip_id
+            constraintName: uk_trip_location_sharing_user_trip
+
+  - changeSet:
+      id: 024-create-location-share-links-table
+      author: travyn
+      changes:
+        - createTable:
+            tableName: location_share_links
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: token
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: trip_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: emergency_contact_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: location_share_links
+            baseColumnNames: user_id
+            constraintName: fk_location_share_links_user
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: location_share_links
+            baseColumnNames: trip_id
+            constraintName: fk_location_share_links_trip
+            referencedTableName: trips
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: location_share_links
+            baseColumnNames: emergency_contact_id
+            constraintName: fk_location_share_links_contact
+            referencedTableName: emergency_contacts
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_location_share_links_token
+            tableName: location_share_links
+            columns:
+              - column:
+                  name: token
+
+  - changeSet:
+      id: 024-create-user-location-history-table
+      author: travyn
+      changes:
+        - createTable:
+            tableName: user_location_history
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: trip_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: encrypted_latitude
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: encrypted_longitude
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: accuracy
+                  type: real
+                  constraints:
+                    nullable: false
+              - column:
+                  name: recorded_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: user_location_history
+            baseColumnNames: user_id
+            constraintName: fk_user_location_history_user
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: user_location_history
+            baseColumnNames: trip_id
+            constraintName: fk_user_location_history_trip
+            referencedTableName: trips
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_user_location_history_user_trip_time
+            tableName: user_location_history
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: trip_id
+              - column:
+                  name: recorded_at
+                  descending: true

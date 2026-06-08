@@ -115,6 +115,8 @@ public class NotificationService {
                 || type == NotificationType.REVIEWS_PUBLISHED
                 || type == NotificationType.REVIEW_AUTO_PUBLISHED) {
             url = "/dashboard/trips/" + referenceId;
+        } else if (type == NotificationType.SAFETY_CHECK || type == NotificationType.LOCATION_SHARED) {
+            url = "/dashboard/safety";
         }
         webPushService.sendPushNotification(userId, "Travyn Notification", message, url);
 

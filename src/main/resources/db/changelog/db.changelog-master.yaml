@@ -43,3 +43,7 @@ databaseChangeLog:
       file: db/changelog/021-create-direct-messages-table.yaml
   - include:
       file: db/changelog/022-create-push-subscriptions-table.yaml
+  - include:
+      file: db/changelog/023-create-emergency-contacts-table.yaml
+  - include:
+      file: db/changelog/024-create-location-sharing-tables.yaml

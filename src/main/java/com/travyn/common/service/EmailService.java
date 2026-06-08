@@ -75,6 +75,20 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, html);
     }
 
+    @Async
+    public void sendLocationShareEmail(String toEmail, String contactName, String travelerName, String destination, String link) {
+        String subject = "URGENT: Live Location Sharing for " + destination;
+        String html = buildEmailTemplate(
+                contactName,
+                "Live Tracking 🗺️",
+                travelerName + " has shared their live location with you for their trip to " + destination + ".",
+                "Track Live Location",
+                link,
+                "This secure tracking link is valid for 72 hours. Please monitor this link to ensure " + travelerName + "'s safety."
+        );
+        sendHtmlEmail(toEmail, subject, html);
+    }
+
     private void sendHtmlEmail(String to, String subject, String htmlContent) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
