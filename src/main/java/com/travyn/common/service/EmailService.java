@@ -96,6 +96,22 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, html);
     }
 
+    @Async
+    public void sendSosEmail(String toEmail, String contactName, String travelerName, String link, Double lastLat, Double lastLng) {
+        String subject = "🚨 EMERGENCY SOS: " + travelerName + " is unresponsive";
+        String html = buildEmailTemplate(
+                contactName,
+                "Emergency SOS Alert 🚨",
+                "<b>" + travelerName + "</b> has been stationary in an unknown location for over 2 hours and is unresponsive to our automated safety checks.<br><br>" +
+                "Their last known coordinates are: <b>" + lastLat + ", " + lastLng + "</b>.<br><br>" +
+                "Please click the link below to view their live map, or try contacting them immediately.",
+                "View Live Map",
+                link,
+                "This is an automated SOS alert from Travyn Safety Systems."
+        );
+        sendHtmlEmail(toEmail, subject, html);
+    }
+
     private void sendHtmlEmail(String to, String subject, String htmlContent) {
         // Use Brevo HTTP API in production (bypasses SMTP port blocks)
         if (brevoEmailSender != null) {
