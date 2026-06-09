@@ -2,8 +2,8 @@ package com.travyn.common.service;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -11,17 +11,24 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
     private final JavaMailSender mailSender;
+
+    /** Injected only when brevo.api-key is set (prod). Null in local dev. */
+    @Autowired(required = false)
+    private BrevoEmailSender brevoEmailSender;
 
     @Value("${spring.mail.username}")
     private String fromEmail;
 
     @Value("${app.base-url}")
     private String baseUrl;
+
+    public EmailService(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
+    }
 
     @Async
     public void sendVerificationEmail(String toEmail, String firstName, String token) {
@@ -69,7 +76,7 @@ public class EmailService {
                 "Your account is verified and ready to go. You've already completed Aadhaar verification, "
                         + "so you can start exploring trips and connecting with travel companions right away.",
                 "Explore Travyn",
-                "http://localhost:3000/dashboard",
+                baseUrl + "/dashboard",
                 "Your identity has been verified via Aadhaar. Your trust score has been boosted by 50 points."
         );
         sendHtmlEmail(toEmail, subject, html);
@@ -90,6 +97,13 @@ public class EmailService {
     }
 
     private void sendHtmlEmail(String to, String subject, String htmlContent) {
+        // Use Brevo HTTP API in production (bypasses SMTP port blocks)
+        if (brevoEmailSender != null) {
+            brevoEmailSender.send(to, subject, htmlContent);
+            return;
+        }
+
+        // Fallback to JavaMailSender (SMTP) for local development
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
