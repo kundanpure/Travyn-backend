@@ -13,7 +13,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.travyn.common.exception.GoogleProfileRequiredException;
 import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -59,18 +61,36 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("available", isAvailable));
     }
 
-    @PostMapping("/register")
-    @Operation(summary = "Register a new user")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        AuthResponse response = authService.register(request);
+    @PostMapping("/aadhaar/google-register")
+    @Operation(summary = "Register using Aadhaar + Google account binding")
+    public ResponseEntity<AuthResponse> aadhaarGoogleRegister(@Valid @RequestBody AadhaarGoogleRegisterRequest request) {
+        AuthResponse response = authService.aadhaarGoogleRegister(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PostMapping("/login")
-    @Operation(summary = "Login with email and password")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        AuthResponse response = authService.login(request);
-        return ResponseEntity.ok(response);
+    @PostMapping("/google/login")
+    @Operation(summary = "Login with Google credential token")
+    public ResponseEntity<?> googleLogin(@Valid @RequestBody GoogleAuthRequest request) {
+        try {
+            AuthResponse response = authService.googleLogin(request);
+            return ResponseEntity.ok(response);
+        } catch (GoogleProfileRequiredException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "PROFILE_COMPLETION_REQUIRED");
+            errorResponse.put("message", "Please complete your profile to continue");
+            errorResponse.put("email", e.getEmail());
+            errorResponse.put("firstName", e.getFirstName());
+            errorResponse.put("lastName", e.getLastName());
+            errorResponse.put("profilePictureUrl", e.getProfilePictureUrl());
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(errorResponse);
+        }
+    }
+
+    @PostMapping("/google/register")
+    @Operation(summary = "Complete registration after Google login")
+    public ResponseEntity<AuthResponse> googleRegister(@Valid @RequestBody GoogleRegisterRequest request) {
+        AuthResponse response = authService.googleRegister(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/me")
@@ -92,38 +112,5 @@ public class AuthController {
     public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
         authService.logout(request.getRefreshToken());
         return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/verify-email")
-    @Operation(summary = "Verify email using token sent via email")
-    public ResponseEntity<Map<String, String>> verifyEmail(@RequestParam String token) {
-        authService.verifyEmail(token);
-        return ResponseEntity.ok(Map.of("message", "Email verified successfully"));
-    }
-
-    @PostMapping("/resend-verification")
-    @Operation(summary = "Resend email verification link")
-    public ResponseEntity<Map<String, String>> resendVerification(
-            @Valid @RequestBody PasswordResetRequest request) {
-        authService.resendVerificationEmail(request.getEmail());
-        return ResponseEntity.ok(Map.of("message",
-                "If your account exists and is unverified, a new verification email has been sent"));
-    }
-
-    @PostMapping("/password-reset/request")
-    @Operation(summary = "Request a password reset link")
-    public ResponseEntity<Map<String, String>> requestPasswordReset(
-            @Valid @RequestBody PasswordResetRequest request) {
-        authService.requestPasswordReset(request.getEmail());
-        return ResponseEntity.ok(Map.of("message",
-                "If an account exists with this email, a password reset link has been sent"));
-    }
-
-    @PostMapping("/password-reset/confirm")
-    @Operation(summary = "Reset password using token")
-    public ResponseEntity<Map<String, String>> resetPassword(
-            @Valid @RequestBody PasswordResetConfirm request) {
-        authService.resetPassword(request.getToken(), request.getNewPassword());
-        return ResponseEntity.ok(Map.of("message", "Password has been reset successfully"));
     }
 }

@@ -136,7 +136,7 @@ public class LocationSharingService {
             linkRepository.save(link);
 
             String url = "http://localhost:3000/share/location/" + token;
-            sendShareEmail(traveler, contact, trip, url);
+            // emailService.sendShareEmail(traveler, contact, trip, url); // Removed: Now relying on UI to show shareable link
 
             return ShareLinkDTO.builder()
                     .contactName(contact.getName())

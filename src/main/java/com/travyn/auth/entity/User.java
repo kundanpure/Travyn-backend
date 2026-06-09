@@ -27,7 +27,7 @@ public class User {
     @Column(nullable = false, unique = true, length = 50)
     private String username;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
 
     @Column(name = "first_name", nullable = false, length = 100)
@@ -93,6 +93,14 @@ public class User {
     @Column(name = "gender_change_count", nullable = false)
     @Builder.Default
     private int genderChangeCount = 0;
+
+    @Column(name = "auth_provider", nullable = false, length = 30)
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private AuthProvider authProvider = AuthProvider.LOCAL;
+
+    @Column(name = "profile_picture_url", length = 500)
+    private String profilePictureUrl;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

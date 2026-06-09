@@ -1,0 +1,27 @@
+databaseChangeLog:
+  - changeSet:
+      id: 026-add-auth-provider
+      author: travyn
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: auth_provider
+                  type: varchar(30)
+                  defaultValue: 'LOCAL'
+                  constraints:
+                    nullable: false
+              - column:
+                  name: profile_picture_url
+                  type: varchar(500)
+                  constraints:
+                    nullable: true
+        - modifyDataType:
+            tableName: users
+            columnName: password_hash
+            newDataType: varchar(255)
+        - dropNotNullConstraint:
+            tableName: users
+            columnName: password_hash
+            columnDataType: varchar(255)

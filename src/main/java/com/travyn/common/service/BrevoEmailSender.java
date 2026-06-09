@@ -3,19 +3,22 @@ package com.travyn.common.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.http.*;
-import org.springframework.stereotype.Component;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Map;
 
 /**
- * Sends transactional emails via Brevo's HTTP API (no SMTP ports needed).
- * Activated only in production when brevo.api-key is set.
+ * Sends email via Brevo's HTTP API.
+ * This is used in production environments to bypass Render's SMTP port block.
  */
-@Component
-@ConditionalOnExpression("!'${brevo.api-key:}'.isEmpty()")
+@Service
+@ConditionalOnExpression("'${brevo.api-key:}' != ''")
 @Slf4j
 public class BrevoEmailSender {
 
@@ -24,21 +27,18 @@ public class BrevoEmailSender {
     @Value("${brevo.api-key}")
     private String apiKey;
 
-    @Value("${brevo.sender-email:codekundan01@gmail.com}")
+    @Value("${brevo.sender-email:kundankumar8797737@gmail.com}")
     private String senderEmail;
 
     @Value("${brevo.sender-name:Travyn}")
     private String senderName;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
-    /**
-     * Send an HTML email via Brevo's transactional HTTP API.
-     *
-     * @param to          recipient email address
-     * @param subject     email subject
-     * @param htmlContent full HTML body
-     */
+    public BrevoEmailSender() {
+        this.restTemplate = new RestTemplate();
+    }
+
     public void send(String to, String subject, String htmlContent) {
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -53,15 +53,17 @@ public class BrevoEmailSender {
             );
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
             ResponseEntity<String> response = restTemplate.postForEntity(BREVO_API_URL, request, String.class);
 
             if (response.getStatusCode().is2xxSuccessful()) {
-                log.info("Email sent via Brevo to: {}", to);
+                log.info("Email sent successfully via Brevo to: {}", to);
             } else {
-                log.error("Brevo API returned {}: {}", response.getStatusCode(), response.getBody());
+                log.error("Failed to send email via Brevo to {}: {}", to, response.getBody());
             }
+
         } catch (Exception e) {
-            log.error("Failed to send email via Brevo to {}: {}", to, e.getMessage());
+            log.error("Error sending email via Brevo to {}: {}", to, e.getMessage());
         }
     }
 }
