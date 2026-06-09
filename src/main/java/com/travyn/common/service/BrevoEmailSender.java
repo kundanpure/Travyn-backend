@@ -2,7 +2,7 @@ package com.travyn.common.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -15,7 +15,7 @@ import java.util.Map;
  * Activated only in production when brevo.api-key is set.
  */
 @Component
-@ConditionalOnProperty(name = "brevo.api-key")
+@ConditionalOnExpression("!'${brevo.api-key:}'.isEmpty()")
 @Slf4j
 public class BrevoEmailSender {
 
