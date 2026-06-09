@@ -36,6 +36,10 @@ public class LocationSharingService {
     private final UserLocationHistoryRepository historyRepository;
     private final LocationShareLinkRepository linkRepository;
     private final EmergencyContactRepository contactRepository;
+    
+    @org.springframework.beans.factory.annotation.Value("${app.base-url}")
+    private String appBaseUrl;
+
     private final TripRepository tripRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
@@ -135,7 +139,7 @@ public class LocationSharingService {
                     .build();
             linkRepository.save(link);
 
-            String url = "http://localhost:3000/share/location/" + token;
+            String url = appBaseUrl.replaceAll("/+$", "") + "/share/location/" + token;
             // emailService.sendShareEmail(traveler, contact, trip, url); // Removed: Now relying on UI to show shareable link
 
             return ShareLinkDTO.builder()
