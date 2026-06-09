@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Interceptss STOMP CONNECT frames to validate JWT tokens.
+ * Interceptss STTOMP CONNECT frames to validate JWT tokens.
  * Clients must send the JWT token in the "Authorization" header of the STOMP CONNECT frame.
  */
 @Component
