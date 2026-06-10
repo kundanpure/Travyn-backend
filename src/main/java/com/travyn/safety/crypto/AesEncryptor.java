@@ -83,8 +83,8 @@ public class AesEncryptor implements AttributeConverter<Double, String> {
             byte[] plaintext = cipher.doFinal(ciphertext);
             return Double.parseDouble(new String(plaintext, StandardCharsets.UTF_8));
         } catch (Exception e) {
-            log.error("Failed to decrypt location coordinate", e);
-            throw new RuntimeException("Decryption error", e);
+            log.warn("Failed to decrypt location coordinate. The encryption key may have changed or data is corrupted. Returning null.", e);
+            return null;
         }
     }
 }
