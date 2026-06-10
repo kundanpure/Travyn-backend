@@ -55,10 +55,14 @@ public class ManualSOSController {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         
-        // Generate a secure random token
+        // Generate a secure random token (Hex to avoid Telegram Markdown mangling like underscores)
         byte[] randomBytes = new byte[32];
         new SecureRandom().nextBytes(randomBytes);
-        String tokenStr = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+        StringBuilder sb = new StringBuilder(64);
+        for (byte b : randomBytes) {
+            sb.append(String.format("%02x", b));
+        }
+        String tokenStr = sb.toString();
 
         // Find last known location
         Optional<UserLocationHistory> lastLocation = locationHistoryRepository

@@ -140,10 +140,14 @@ public class SafetyCheckScheduler {
 
             log.error("🚨 ESCALATING SAFETY CHECK FOR USER: {}", user.getEmail());
 
-            // Generate SOS Token
+            // Generate SOS Token (Hex to avoid Telegram Markdown mangling like underscores)
             byte[] randomBytes = new byte[32];
             new java.security.SecureRandom().nextBytes(randomBytes);
-            String tokenStr = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+            StringBuilder sb = new StringBuilder(64);
+            for (byte b : randomBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            String tokenStr = sb.toString();
 
             SOSToken sosToken = SOSToken.builder()
                     .token(tokenStr)
