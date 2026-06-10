@@ -46,7 +46,7 @@ public class ManualSOSController {
     private final TelegramBotService telegramBotService;
     private final EmailService emailService;
 
-    @Value("${app.frontend-url:http://localhost:3000}")
+    @Value("${app.base-url:http://localhost:3000}")
     private String frontendUrl;
 
     @PostMapping("/panic")

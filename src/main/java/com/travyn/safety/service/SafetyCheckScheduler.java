@@ -39,7 +39,7 @@ public class SafetyCheckScheduler {
     private final com.travyn.safety.repository.SOSTokenRepository sosTokenRepository;
     private final com.travyn.common.service.TelegramBotService telegramBotService;
 
-    @Value("${app.frontend-url:http://localhost:3000}")
+    @Value("${app.base-url:http://localhost:3000}")
     private String frontendUrl;
 
     private static final double EARTH_RADIUS_KM = 6371.0;
