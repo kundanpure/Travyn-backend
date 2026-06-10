@@ -32,7 +32,7 @@ setInterval(() => {
                         const req = http.request({
                             hostname: 'localhost',
                             port: 8080,
-                            path: '/api/v1/telegram/webhook',
+                            path: '/api/v1/public/telegram/webhook',
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' }
                         }, (webhookRes) => {
