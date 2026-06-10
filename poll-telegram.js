@@ -1,46 +1,51 @@
 const https = require('https');
 const http = require('http');
 
-const TOKEN = '8909199719:AAH4mgKCKslEKPzwhmvpf5M5TjzUP97LaPM';
+// Script to poll Telegram updates locally and forward to localhost Webhook
+// NOTE: DO NOT HARDCODE YOUR TOKEN HERE IF YOU COMMIT THIS FILE.
+
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN; 
+
+if (!TELEGRAM_BOT_TOKEN) {
+  console.error("Please set TELEGRAM_BOT_TOKEN environment variable");
+  process.exit(1);
+}
+
+const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 let lastUpdateId = 0;
 
-console.log("Polling Telegram for /start commands...");
+console.log("Polling Telegram for commands...");
 
 setInterval(() => {
-    https.get(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=5`, (res) => {
+    https.get(`${TELEGRAM_API}/getUpdates?offset=${lastUpdateId + 1}&timeout=5`, (res) => {
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
             try {
-                const json = JSON.parse(data);
-                if (!json.ok || !json.result) return;
-                
-                for (const update of json.result) {
-                    lastUpdateId = update.update_id;
-                    if (update.message && update.message.text && update.message.text.startsWith('/start')) {
-                        console.log(`Received command: ${update.message.text}`);
+                const response = JSON.parse(data);
+                if (response.ok && response.result.length > 0) {
+                    for (const update of response.result) {
+                        lastUpdateId = update.update_id;
+                        console.log("Received update:", update.update_id);
                         
-                        // Forward to Spring Boot webhook
-                        const reqData = JSON.stringify({ message: update.message });
+                        // Forward to local webhook
                         const req = http.request({
                             hostname: 'localhost',
                             port: 8080,
-                            path: '/api/v1/public/telegram/webhook',
+                            path: '/api/v1/telegram/webhook',
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Content-Length': reqData.length
-                            }
-                        }, (resp) => {
-                            console.log(`Forwarded to Spring Boot, status: ${resp.statusCode}`);
+                            headers: { 'Content-Type': 'application/json' }
+                        }, (webhookRes) => {
+                            console.log(`Webhook forwarded, status: ${webhookRes.statusCode}`);
                         });
-                        
-                        req.on('error', (e) => console.error(`Problem forwarding: ${e.message}`));
-                        req.write(reqData);
+                        req.on('error', (e) => console.error("Webhook forwarding failed:", e.message));
+                        req.write(JSON.stringify(update));
                         req.end();
                     }
                 }
-            } catch(e) {}
+            } catch (e) {
+                console.error("Error parsing update:", e.message);
+            }
         });
-    }).on('error', (e) => console.error(e));
+    }).on('error', e => console.error("Polling error:", e.message));
 }, 2000);

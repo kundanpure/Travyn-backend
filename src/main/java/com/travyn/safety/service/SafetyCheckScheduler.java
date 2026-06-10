@@ -59,6 +59,12 @@ public class SafetyCheckScheduler {
             UserLocationHistory oldest = recentHistory.get(0);
             UserLocationHistory newest = recentHistory.get(recentHistory.size() - 1);
 
+            if (oldest.getLatitude() == null || oldest.getLongitude() == null ||
+                newest.getLatitude() == null || newest.getLongitude() == null) {
+                log.warn("Skipping immobility check for user {} due to undecryptable location data", tracker.getUserId());
+                continue;
+            }
+
             double distanceMoved = calculateDistance(
                     oldest.getLatitude(), oldest.getLongitude(),
                     newest.getLatitude(), newest.getLongitude()
