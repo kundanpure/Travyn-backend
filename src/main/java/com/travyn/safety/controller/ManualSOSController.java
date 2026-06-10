@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -51,7 +52,7 @@ public class ManualSOSController {
 
     @PostMapping("/panic")
     @Operation(summary = "Manually trigger an emergency SOS")
-    public ResponseEntity<Map<String, String>> triggerManualSOS() {
+    public ResponseEntity<Map<String, String>> triggerManualSOS(@RequestBody(required = false) Map<String, Double> locationData) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         
@@ -64,15 +65,22 @@ public class ManualSOSController {
         }
         String tokenStr = sb.toString();
 
-        // Find last known location
-        Optional<UserLocationHistory> lastLocation = locationHistoryRepository
-                .findFirstByUserIdOrderByRecordedAtDesc(user.getId());
-        
         Double lat = null;
         Double lng = null;
-        if (lastLocation.isPresent()) {
-            lat = lastLocation.get().getLatitude();
-            lng = lastLocation.get().getLongitude();
+
+        // Use precise location from payload if available
+        if (locationData != null && locationData.containsKey("latitude") && locationData.containsKey("longitude")) {
+            lat = locationData.get("latitude");
+            lng = locationData.get("longitude");
+        } else {
+            // Fallback to last known location in database
+            Optional<UserLocationHistory> lastLocation = locationHistoryRepository
+                    .findFirstByUserIdOrderByRecordedAtDesc(user.getId());
+            
+            if (lastLocation.isPresent()) {
+                lat = lastLocation.get().getLatitude();
+                lng = lastLocation.get().getLongitude();
+            }
         }
 
         // Save token
