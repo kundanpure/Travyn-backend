@@ -25,4 +25,6 @@ public interface UserLocationHistoryRepository extends JpaRepository<UserLocatio
             @Param("userId") UUID userId,
             @Param("tripId") UUID tripId,
             @Param("since") Instant since);
+
+    Optional<UserLocationHistory> findFirstByUserIdOrderByRecordedAtDesc(UUID userId);
 }

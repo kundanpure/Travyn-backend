@@ -2,7 +2,6 @@ package com.travyn.common.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -13,7 +12,6 @@ import org.springframework.web.client.RestTemplate;
 import java.util.Map;
 
 @Service
-@ConditionalOnExpression("'${telegram.bot.token:}' != ''")
 @Slf4j
 public class TelegramBotService {
 

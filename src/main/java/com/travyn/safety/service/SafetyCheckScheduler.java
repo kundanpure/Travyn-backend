@@ -36,9 +36,11 @@ public class SafetyCheckScheduler {
     private final EmergencyContactRepository emergencyContactRepository;
     private final EmailService emailService;
     private final UserRepository userRepository;
+    private final com.travyn.safety.repository.SOSTokenRepository sosTokenRepository;
+    private final com.travyn.common.service.TelegramBotService telegramBotService;
 
-    @Value("${app.base-url}")
-    private String baseUrl;
+    @Value("${app.frontend-url:http://localhost:3000}")
+    private String frontendUrl;
 
     private static final double EARTH_RADIUS_KM = 6371.0;
 
@@ -136,11 +138,37 @@ public class SafetyCheckScheduler {
             List<EmergencyContact> contacts = emergencyContactRepository.findByUserId(user.getId());
             if (contacts.isEmpty()) continue;
 
-            log.error("ESCALATING SAFETY CHECK FOR USER: {}", user.getEmail());
+            log.error("🚨 ESCALATING SAFETY CHECK FOR USER: {}", user.getEmail());
+
+            // Generate SOS Token
+            byte[] randomBytes = new byte[32];
+            new java.security.SecureRandom().nextBytes(randomBytes);
+            String tokenStr = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+
+            SOSToken sosToken = SOSToken.builder()
+                    .token(tokenStr)
+                    .userId(user.getId())
+                    .tripId(check.getTripId())
+                    .safetyCheckId(check.getId())
+                    .isActive(true)
+                    .build();
+            sosTokenRepository.save(sosToken);
+
+            String trackingUrl = frontendUrl + "/share/sos/" + tokenStr;
+            String travelerName = user.getFirstName() + " " + user.getLastName();
 
             for (EmergencyContact contact : contacts) {
-                String link = baseUrl + "/safety/track/" + check.getTripId(); // Assuming generic trip link or we'd generate a specific one
-                emailService.sendSosEmail(contact.getEmail(), contact.getName(), user.getFirstName(), link, check.getLastLat(), check.getLastLng());
+                if (contact.getTelegramChatId() != null) {
+                    telegramBotService.sendSOSAlert(
+                            contact.getTelegramChatId(),
+                            travelerName,
+                            check.getLastLat(),
+                            check.getLastLng(),
+                            trackingUrl
+                    );
+                }
+                
+                emailService.sendSosEmail(contact.getEmail(), contact.getName(), travelerName, trackingUrl, check.getLastLat(), check.getLastLng());
             }
             
             notificationService.notifyUser(
