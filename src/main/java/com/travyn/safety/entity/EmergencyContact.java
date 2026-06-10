@@ -34,6 +34,9 @@ public class EmergencyContact {
     @Column(length = 50)
     private String relationship;
 
+    @Column(name = "telegram_chat_id")
+    private Long telegramChatId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

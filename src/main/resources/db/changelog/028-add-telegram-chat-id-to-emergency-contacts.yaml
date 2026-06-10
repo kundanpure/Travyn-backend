@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 028-add-telegram-chat-id-to-emergency-contacts
+      author: antigravity
+      changes:
+        - addColumn:
+            tableName: emergency_contacts
+            columns:
+              - column:
+                  name: telegram_chat_id
+                  type: BIGINT

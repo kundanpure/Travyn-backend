@@ -24,7 +24,11 @@ public class EmergencyContactService {
     @Transactional(readOnly = true)
     public List<EmergencyContactDTO> getMyContacts(UUID userId) {
         return emergencyContactRepository.findByUserId(userId).stream()
-                .map(contact -> modelMapper.map(contact, EmergencyContactDTO.class))
+                .map(contact -> {
+                    EmergencyContactDTO dto = modelMapper.map(contact, EmergencyContactDTO.class);
+                    dto.setTelegramConnected(contact.getTelegramChatId() != null);
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 

@@ -15,5 +15,6 @@ public class EmergencyContactDTO {
     private String phoneNumber;
     private String email;
     private String relationship;
+    private boolean telegramConnected;
     private Instant createdAt;
 }
