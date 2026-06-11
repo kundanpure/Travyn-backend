@@ -23,4 +23,5 @@ public class TripMemberDTO {
     private MemberStatus status;
     private Instant joinedAt;
     private String profilePhotoUrl;
+    private boolean verified;
 }

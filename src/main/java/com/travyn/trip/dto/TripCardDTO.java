@@ -27,6 +27,7 @@ public class TripCardDTO {
     private int maxSize;
     private int memberCount;
     private String creatorName;
+    private boolean creatorVerified;
     private boolean womenOnly;
     private String tags;
     private BigDecimal minBudget;

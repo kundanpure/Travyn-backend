@@ -512,6 +512,7 @@ public class TripService {
                 .maxSize(trip.getMaxSize())
                 .memberCount(memberCount)
                 .creatorName(creator != null ? creator.getFirstName() + " " + creator.getLastName() : null)
+                .creatorVerified(creator != null && creator.getStatus() == com.travyn.auth.entity.UserStatus.KYC_VERIFIED)
                 .womenOnly(trip.isWomenOnly())
                 .tags(trip.getTags())
                 .minBudget(trip.getMinBudget())
@@ -535,6 +536,7 @@ public class TripService {
                 .status(member.getMemberStatus())
                 .joinedAt(member.getJoinedAt())
                 .profilePhotoUrl(photoUrl)
+                .verified(user != null && user.getStatus() == com.travyn.auth.entity.UserStatus.KYC_VERIFIED)
                 .build();
     }
 
@@ -546,6 +548,7 @@ public class TripService {
                 .lastName(user != null ? user.getLastName() : null)
                 .status(member.getMemberStatus())
                 .requestedAt(member.getJoinedAt())
+                .verified(user != null && user.getStatus() == com.travyn.auth.entity.UserStatus.KYC_VERIFIED)
                 .build();
     }
 

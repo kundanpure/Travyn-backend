@@ -30,4 +30,5 @@ public class MatchCandidateDTO {
     
     private int compatibilityScore;
     private CompatibilityBreakdownDTO breakdown;
+    private boolean verified;
 }

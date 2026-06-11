@@ -21,4 +21,5 @@ public class JoinRequestDTO {
     private String lastName;
     private MemberStatus status;
     private Instant requestedAt;
+    private boolean verified;
 }

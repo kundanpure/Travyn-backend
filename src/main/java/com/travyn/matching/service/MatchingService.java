@@ -230,6 +230,7 @@ public class MatchingService {
                 .distanceInKm(distanceInKm)
                 .compatibilityScore(breakdown.getOverallScore())
                 .breakdown(breakdown)
+                .verified(user.getStatus() == UserStatus.KYC_VERIFIED)
                 .build();
     }
     

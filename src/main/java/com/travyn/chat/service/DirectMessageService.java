@@ -101,6 +101,7 @@ public class DirectMessageService {
                     .latestMessageAt(latestMsg != null ? latestMsg.getCreatedAt() : null)
                     .unreadCount(unreadCount)
                     .partnerProfilePhotoUrl(photoUrl)
+                    .partnerVerified(partner.getStatus() == com.travyn.auth.entity.UserStatus.KYC_VERIFIED)
                     .build());
         }
         

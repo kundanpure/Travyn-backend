@@ -22,4 +22,5 @@ public class DirectMessageInboxDTO {
     private Instant latestMessageAt;
     private int unreadCount;
     private String partnerProfilePhotoUrl;
+    private boolean partnerVerified;
 }
