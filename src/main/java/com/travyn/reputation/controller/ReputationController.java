@@ -39,6 +39,11 @@ public class ReputationController {
         return ResponseEntity.ok(windowStatus);
     }
 
+    @GetMapping("/trips/{tripId}/peer-reviews")
+    public ResponseEntity<List<ReviewDTO>> getTripPeerReviews(@PathVariable String tripId) {
+        return ResponseEntity.ok(reputationService.getTripPeerReviews(tripId));
+    }
+
     @GetMapping("/users/{userId}/trust-score")
     public ResponseEntity<TrustScoreDTO> getTrustScore(@PathVariable String userId) {
         return ResponseEntity.ok(reputationService.getTrustScore(userId));

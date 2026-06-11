@@ -227,6 +227,14 @@ public class ReputationService {
         return reviews.stream().map(this::convertToDto).collect(Collectors.toList());
     }
     
+    public List<ReviewDTO> getTripPeerReviews(String tripId) {
+        List<Review> reviews = reviewRepository.findByTripId(UUID.fromString(tripId));
+        return reviews.stream()
+                .filter(Review::getIsPublished)
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+    
     @Transactional
     public void recomputeTrustScore(String userId) {
         User user = userRepository.findById(UUID.fromString(userId)).orElseThrow();
