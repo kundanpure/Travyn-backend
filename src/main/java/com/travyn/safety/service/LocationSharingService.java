@@ -120,35 +120,30 @@ public class LocationSharingService {
         Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
 
-        List<EmergencyContact> contacts = contactRepository.findByUserId(userId);
-        if (contacts.isEmpty()) {
-            throw new IllegalStateException("No emergency contacts configured");
-        }
-
         // Make sure sharing is active
         toggleSharing(userId, tripId, true);
 
-        return contacts.stream().map(contact -> {
-            String token = UUID.randomUUID().toString();
-            LocationShareLink link = LocationShareLink.builder()
-                    .token(token)
-                    .userId(userId)
-                    .tripId(tripId)
-                    .emergencyContactId(contact.getId())
-                    .expiresAt(Instant.now().plus(72, ChronoUnit.HOURS))
-                    .build();
-            linkRepository.save(link);
+        // Generate a single Master Tracking Link
+        String token = UUID.randomUUID().toString();
+        LocationShareLink link = LocationShareLink.builder()
+                .token(token)
+                .userId(userId)
+                .tripId(tripId)
+                .emergencyContactId(null) // Master link
+                .expiresAt(Instant.now().plus(72, ChronoUnit.HOURS))
+                .build();
+        linkRepository.save(link);
 
-            String url = appBaseUrl.replaceAll("/+$", "") + "/share/location/" + token;
-            // emailService.sendShareEmail(traveler, contact, trip, url); // Removed: Now relying on UI to show shareable link
+        String url = appBaseUrl.replaceAll("/+$", "") + "/share/location/" + token;
 
-            return ShareLinkDTO.builder()
-                    .contactName(contact.getName())
-                    .contactEmail(contact.getEmail())
-                    .shareUrl(url)
-                    .expiresAt(link.getExpiresAt().toString())
-                    .build();
-        }).collect(Collectors.toList());
+        ShareLinkDTO dto = ShareLinkDTO.builder()
+                .contactName("Master Tracking Link")
+                .contactEmail("Anyone with this link can track you")
+                .shareUrl(url)
+                .expiresAt(link.getExpiresAt().toString())
+                .build();
+
+        return java.util.List.of(dto);
     }
 
     @Transactional(readOnly = true)

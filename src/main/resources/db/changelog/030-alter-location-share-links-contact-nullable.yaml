@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 030-alter-location-share-links-contact-nullable
+      author: antigravity
+      changes:
+        - dropNotNullConstraint:
+            tableName: location_share_links
+            columnName: emergency_contact_id
+            columnDataType: UUID

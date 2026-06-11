@@ -28,7 +28,7 @@ public class LocationShareLink {
     @Column(name = "trip_id", nullable = false)
     private UUID tripId;
 
-    @Column(name = "emergency_contact_id", nullable = false)
+    @Column(name = "emergency_contact_id", nullable = true)
     private UUID emergencyContactId;
 
     @Column(name = "expires_at", nullable = false)

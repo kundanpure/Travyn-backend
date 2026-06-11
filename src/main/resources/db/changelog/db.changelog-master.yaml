@@ -57,3 +57,5 @@ databaseChangeLog:
       file: db/changelog/028-add-telegram-chat-id-to-emergency-contacts.yaml
   - include:
       file: db/changelog/029-create-sos-tokens.yaml
+  - include:
+      file: db/changelog/030-alter-location-share-links-contact-nullable.yaml
