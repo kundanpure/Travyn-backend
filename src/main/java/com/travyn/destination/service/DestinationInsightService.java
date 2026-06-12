@@ -9,12 +9,13 @@ import com.travyn.destination.repository.DestinationInsightRepository;
 import com.travyn.trip.repository.TripRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -24,8 +25,9 @@ public class DestinationInsightService {
     private final TripRepository tripRepository;
     private final UserRepository userRepository;
 
+    @Transactional(readOnly = true)
     public List<DestinationInsightDTO> getInsightsForDestination(String destination) {
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(30);
+        Instant cutoff = Instant.now().minus(30, ChronoUnit.DAYS);
         return insightRepository.findActiveInsights(destination, cutoff)
                 .stream()
                 .map(this::mapToDTO)

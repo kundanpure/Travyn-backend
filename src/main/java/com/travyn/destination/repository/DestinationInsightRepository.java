@@ -6,7 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.UUID;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -16,5 +16,5 @@ public interface DestinationInsightRepository extends JpaRepository<DestinationI
     @Query("SELECT d FROM DestinationInsight d WHERE LOWER(d.destination) = LOWER(:destination) " +
            "AND (d.category != 'ALERT' OR d.createdAt > :cutoff) " +
            "ORDER BY d.upvotes DESC, d.createdAt DESC")
-    List<DestinationInsight> findActiveInsights(@Param("destination") String destination, @Param("cutoff") LocalDateTime cutoff);
+    List<DestinationInsight> findActiveInsights(@Param("destination") String destination, @Param("cutoff") Instant cutoff);
 }
