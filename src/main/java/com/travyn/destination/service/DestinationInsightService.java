@@ -1,0 +1,78 @@
+package com.travyn.destination.service;
+
+import com.travyn.auth.entity.User;
+import com.travyn.auth.repository.UserRepository;
+import com.travyn.destination.dto.DestinationInsightDTO;
+import com.travyn.destination.dto.DestinationInsightRequest;
+import com.travyn.destination.entity.DestinationInsight;
+import com.travyn.destination.repository.DestinationInsightRepository;
+import com.travyn.trip.repository.TripRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import java.time.LocalDateTime;
+
+@Service
+@RequiredArgsConstructor
+public class DestinationInsightService {
+
+    private final DestinationInsightRepository insightRepository;
+    private final TripRepository tripRepository;
+    private final UserRepository userRepository;
+
+    public List<DestinationInsightDTO> getInsightsForDestination(String destination) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(30);
+        return insightRepository.findActiveInsights(destination, cutoff)
+                .stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public DestinationInsightDTO postInsight(String userEmail, String destination, DestinationInsightRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // Anti-spam verification
+        boolean hasTraveled = tripRepository.hasApprovedTripToDestination(destination, user.getId());
+        if (!hasTraveled) {
+            throw new IllegalArgumentException("You can only post insights for destinations you have traveled to or are planning to travel to.");
+        }
+
+        DestinationInsight insight = DestinationInsight.builder()
+                .destination(destination)
+                .authorId(user.getId())
+                .authorName(user.getFirstName() + " " + user.getLastName())
+                .authorAvatarUrl(user.getProfilePictureUrl())
+                .category(request.getCategory())
+                .content(request.getContent())
+                .build();
+
+        insight = insightRepository.save(insight);
+        return mapToDTO(insight);
+    }
+
+    public void upvoteInsight(String insightId) {
+        DestinationInsight insight = insightRepository.findById(UUID.fromString(insightId))
+                .orElseThrow(() -> new IllegalArgumentException("Insight not found"));
+        insight.setUpvotes(insight.getUpvotes() + 1);
+        insightRepository.save(insight);
+    }
+
+    private DestinationInsightDTO mapToDTO(DestinationInsight insight) {
+        return DestinationInsightDTO.builder()
+                .id(insight.getId())
+                .destination(insight.getDestination())
+                .authorId(insight.getAuthorId())
+                .authorName(insight.getAuthorName())
+                .authorAvatarUrl(insight.getAuthorAvatarUrl())
+                .category(insight.getCategory())
+                .content(insight.getContent())
+                .upvotes(insight.getUpvotes())
+                .createdAt(insight.getCreatedAt())
+                .build();
+    }
+}

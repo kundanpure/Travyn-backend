@@ -1,0 +1,62 @@
+databaseChangeLog:
+  - changeSet:
+      id: 031-create-destination-insights-table
+      author: antigravity
+      changes:
+        - createTable:
+            tableName: destination_insights
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: destination
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: author_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_destination_insights_author
+                    references: users(id)
+              - column:
+                  name: author_name
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: author_avatar_url
+                  type: varchar(255)
+              - column:
+                  name: category
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: upvotes
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_destination_insights_destination
+            tableName: destination_insights
+            columns:
+              - column:
+                  name: destination

@@ -39,4 +39,9 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
             @Param("isUpcoming") boolean isUpcoming,
             @Param("isOngoing") boolean isOngoing,
             Pageable pageable);
+
+    @Query("SELECT COUNT(t) > 0 FROM Trip t LEFT JOIN TripMember m ON t.id = m.tripId " +
+           "WHERE LOWER(t.destination) = LOWER(:destination) " +
+           "AND (t.creatorId = :userId OR (m.userId = :userId AND m.memberStatus = 'APPROVED'))")
+    boolean hasApprovedTripToDestination(@Param("destination") String destination, @Param("userId") UUID userId);
 }
