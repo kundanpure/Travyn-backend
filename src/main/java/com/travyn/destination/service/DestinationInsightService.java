@@ -10,6 +10,8 @@ import com.travyn.trip.repository.TripRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.travyn.notification.service.NotificationService;
+import com.travyn.notification.entity.NotificationType;
 
 import java.util.List;
 import java.util.UUID;
@@ -24,6 +26,7 @@ public class DestinationInsightService {
     private final DestinationInsightRepository insightRepository;
     private final TripRepository tripRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public List<DestinationInsightDTO> getInsightsForDestination(String destination) {
@@ -54,6 +57,18 @@ public class DestinationInsightService {
                 .build();
 
         insight = insightRepository.save(insight);
+        
+        // Trigger Proactive Notifications if this is an ALERT
+        if (request.getCategory() == com.travyn.destination.entity.InsightCategory.ALERT) {
+            List<User> activeUsers = tripRepository.findUsersCurrentlyInDestination(destination);
+            for (User u : activeUsers) {
+                if (!u.getId().equals(user.getId())) {
+                    String message = "🚨 New traveler alert for your current destination (" + destination + ")";
+                    notificationService.notifyUser(u.getId(), message, NotificationType.DESTINATION_ALERT, insight.getId());
+                }
+            }
+        }
+        
         return mapToDTO(insight);
     }
 

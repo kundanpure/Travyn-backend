@@ -44,4 +44,12 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
            "WHERE LOWER(t.destination) = LOWER(:destination) " +
            "AND (t.creatorId = :userId OR (m.userId = :userId AND m.memberStatus = 'APPROVED'))")
     boolean hasApprovedTripToDestination(@Param("destination") String destination, @Param("userId") UUID userId);
+
+    @Query("SELECT DISTINCT u FROM Trip t " +
+           "LEFT JOIN TripMember m ON t.id = m.tripId AND m.memberStatus = 'APPROVED' " +
+           "JOIN com.travyn.auth.entity.User u ON (u.id = t.creatorId OR u.id = m.userId) " +
+           "WHERE LOWER(t.destination) = LOWER(:destination) " +
+           "AND t.status IN ('CONFIRMED', 'ONGOING') " +
+           "AND t.startDate <= CURRENT_DATE AND t.endDate >= CURRENT_DATE")
+    List<com.travyn.auth.entity.User> findUsersCurrentlyInDestination(@Param("destination") String destination);
 }

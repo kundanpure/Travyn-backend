@@ -117,6 +117,10 @@ public class NotificationService {
             url = "/dashboard/trips/" + referenceId;
         } else if (type == NotificationType.SAFETY_CHECK || type == NotificationType.LOCATION_SHARED) {
             url = "/dashboard/safety";
+        } else if (type == NotificationType.DESTINATION_ALERT) {
+            // No reference ID needed, just deep link to the discover page pre-filled with the destination
+            // However, we might want to just link to /dashboard/discover
+            url = "/dashboard/discover";
         }
         webPushService.sendPushNotification(userId, "Travyn Notification", message, url);
 
