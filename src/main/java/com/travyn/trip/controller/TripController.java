@@ -123,8 +123,8 @@ public class TripController {
     public ResponseEntity<List<JoinRequestDTO>> getPendingRequests(
             @AuthenticationPrincipal String email,
             @PathVariable UUID id) {
-        // Access control is handled at service level via trip creator check
-        List<JoinRequestDTO> requests = tripService.getPendingRequests(id);
+        User user = findUserByEmail(email);
+        List<JoinRequestDTO> requests = tripService.getPendingRequests(user.getId(), id);
         return ResponseEntity.ok(requests);
     }
 

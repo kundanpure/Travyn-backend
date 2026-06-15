@@ -447,9 +447,13 @@ public class TripService {
     }
 
     @Transactional(readOnly = true)
-    public List<JoinRequestDTO> getPendingRequests(UUID tripId) {
-        tripRepository.findById(tripId)
+    public List<JoinRequestDTO> getPendingRequests(UUID userId, UUID tripId) {
+        Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+
+        if (!trip.getCreatorId().equals(userId)) {
+            throw new TripAccessDeniedException("Only the trip creator can view pending requests");
+        }
 
         List<TripMember> pendingMembers = tripMemberRepository
                 .findByTripIdAndMemberStatus(tripId, MemberStatus.PENDING);
