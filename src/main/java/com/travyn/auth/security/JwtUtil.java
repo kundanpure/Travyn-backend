@@ -26,6 +26,11 @@ public class JwtUtil {
             @Value("${app.jwt.secret}") String secret,
             @Value("${app.jwt.access-token-expiry-ms}") long accessTokenExpiryMs,
             @Value("${app.jwt.refresh-token-expiry-ms}") long refreshTokenExpiryMs) {
+        
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalArgumentException("FATAL CONFIG ERROR: app.jwt.secret must be at least 32 characters long to securely use the HS256 algorithm. Current length is too short or missing!");
+        }
+
         this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(
                 java.util.Base64.getEncoder().encodeToString(secret.getBytes())));
         this.accessTokenExpiryMs = accessTokenExpiryMs;

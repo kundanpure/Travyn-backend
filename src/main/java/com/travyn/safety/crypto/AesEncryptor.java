@@ -32,10 +32,13 @@ public class AesEncryptor implements AttributeConverter<Double, String> {
 
     @Value("${location.encryption.key}")
     public void setKey(String key) {
+        if (key == null || key.length() < 32) {
+            throw new IllegalArgumentException("FATAL CONFIG ERROR: location.encryption.key must be at least 32 characters long for AES-256.");
+        }
         // Ensure exactly 32 bytes for AES-256
         byte[] raw = key.getBytes(StandardCharsets.UTF_8);
         keyBytes = new byte[32];
-        System.arraycopy(raw, 0, keyBytes, 0, Math.min(raw.length, 32));
+        System.arraycopy(raw, 0, keyBytes, 0, 32);
     }
 
     @Override
