@@ -39,9 +39,10 @@ public class ChatService {
     private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
-    public List<ChatMessageDTO> getMessages(UUID tripId, int page, int size) {
+    public List<ChatMessageDTO> getMessages(UUID userId, UUID tripId, int page, int size) {
         tripRepository.findById(tripId)
                 .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+        validateMembership(userId, tripId);
 
         Page<ChatMessage> messagePage = messageRepository.findByTripIdOrderByCreatedAtDesc(
                 tripId, PageRequest.of(page, size));

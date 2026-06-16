@@ -38,9 +38,10 @@ public class ExpenseService {
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
-    public List<ExpenseDTO> getExpenses(UUID tripId) {
+    public List<ExpenseDTO> getExpenses(UUID userId, UUID tripId) {
         tripRepository.findById(tripId)
                 .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+        validateMembership(userId, tripId);
 
         List<Expense> expenses = expenseRepository.findByTripIdOrderByDateDesc(tripId);
         if (expenses.isEmpty()) return List.of();
@@ -221,9 +222,10 @@ public class ExpenseService {
      * Positive balance = is owed money. Negative balance = owes money.
      */
     @Transactional(readOnly = true)
-    public ExpenseSummaryDTO getSummary(UUID tripId) {
+    public ExpenseSummaryDTO getSummary(UUID userId, UUID tripId) {
         tripRepository.findById(tripId)
                 .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+        validateMembership(userId, tripId);
 
         List<Expense> expenses = expenseRepository.findByTripIdOrderByDateDesc(tripId);
         if (expenses.isEmpty()) {
@@ -296,8 +298,8 @@ public class ExpenseService {
      * Uses the "min-cashflow" approach: repeatedly settle the max creditor with the max debtor.
      */
     @Transactional(readOnly = true)
-    public List<SettlementDTO> getSettlements(UUID tripId) {
-        ExpenseSummaryDTO summary = getSummary(tripId);
+    public List<SettlementDTO> getSettlements(UUID userId, UUID tripId) {
+        ExpenseSummaryDTO summary = getSummary(userId, tripId);
         if (summary.getMemberSummaries().isEmpty()) return List.of();
 
         // Build mutable balance list

@@ -27,10 +27,12 @@ public class ChatController {
     @GetMapping("/messages")
     @Operation(summary = "Get paginated message history for a trip")
     public ResponseEntity<List<ChatMessageDTO>> getMessages(
+            @AuthenticationPrincipal String email,
             @PathVariable UUID tripId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return ResponseEntity.ok(chatService.getMessages(tripId, page, size));
+        User user = findUserByEmail(email);
+        return ResponseEntity.ok(chatService.getMessages(user.getId(), tripId, page, size));
     }
 
     @PostMapping("/messages")

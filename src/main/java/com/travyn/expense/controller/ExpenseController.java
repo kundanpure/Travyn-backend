@@ -28,8 +28,11 @@ public class ExpenseController {
 
     @GetMapping
     @Operation(summary = "List all expenses for a trip")
-    public ResponseEntity<List<ExpenseDTO>> getExpenses(@PathVariable UUID tripId) {
-        return ResponseEntity.ok(expenseService.getExpenses(tripId));
+    public ResponseEntity<List<ExpenseDTO>> getExpenses(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID tripId) {
+        User user = findUserByEmail(email);
+        return ResponseEntity.ok(expenseService.getExpenses(user.getId(), tripId));
     }
 
     @PostMapping
@@ -56,14 +59,20 @@ public class ExpenseController {
 
     @GetMapping("/summary")
     @Operation(summary = "Get trip expense summary with per-member balances")
-    public ResponseEntity<ExpenseSummaryDTO> getSummary(@PathVariable UUID tripId) {
-        return ResponseEntity.ok(expenseService.getSummary(tripId));
+    public ResponseEntity<ExpenseSummaryDTO> getSummary(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID tripId) {
+        User user = findUserByEmail(email);
+        return ResponseEntity.ok(expenseService.getSummary(user.getId(), tripId));
     }
 
     @GetMapping("/settlements")
     @Operation(summary = "Get optimized settlement plan (who pays whom)")
-    public ResponseEntity<List<SettlementDTO>> getSettlements(@PathVariable UUID tripId) {
-        return ResponseEntity.ok(expenseService.getSettlements(tripId));
+    public ResponseEntity<List<SettlementDTO>> getSettlements(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID tripId) {
+        User user = findUserByEmail(email);
+        return ResponseEntity.ok(expenseService.getSettlements(user.getId(), tripId));
     }
 
     private User findUserByEmail(String email) {
