@@ -191,8 +191,6 @@ public class TripService {
 
         trip = tripRepository.save(trip);
 
-        trip = tripRepository.save(trip);
-
         log.info("Trip updated: {} by user: {}", trip.getTripCode(), userId);
 
         return mapToTripDTO(trip, creator);

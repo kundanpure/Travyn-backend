@@ -17,9 +17,12 @@ public class LoggingAspect {
     public Object logServiceMethods(ProceedingJoinPoint joinPoint) throws Throwable {
         String className = joinPoint.getTarget().getClass().getSimpleName();
         String methodName = joinPoint.getSignature().getName();
-        String args = Arrays.toString(joinPoint.getArgs());
+        String argSummary = Arrays.stream(joinPoint.getArgs())
+                .map(a -> a == null ? "null" : a.getClass().getSimpleName())
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("");
 
-        log.debug("→ {}.{}() called with args: {}", className, methodName, args);
+        log.debug("→ {}.{}() called with [{}]", className, methodName, argSummary);
 
         try {
             Object result = joinPoint.proceed();
