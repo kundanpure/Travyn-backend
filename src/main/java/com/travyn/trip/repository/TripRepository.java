@@ -6,6 +6,7 @@ import com.travyn.trip.entity.TripType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -52,4 +53,16 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
            "AND t.status IN ('CONFIRMED', 'ONGOING') " +
            "AND t.startDate <= CURRENT_DATE AND t.endDate >= CURRENT_DATE")
     List<com.travyn.auth.entity.User> findUsersCurrentlyInDestination(@Param("destination") String destination);
+
+    @Modifying
+    @Query("UPDATE Trip t SET t.status = com.travyn.trip.entity.TripStatus.IN_PROGRESS " +
+           "WHERE t.startDate <= :today AND t.endDate >= :today " +
+           "AND t.status IN (com.travyn.trip.entity.TripStatus.OPEN, com.travyn.trip.entity.TripStatus.FULL)")
+    int startTrips(@Param("today") LocalDate today);
+
+    @Modifying
+    @Query("UPDATE Trip t SET t.status = com.travyn.trip.entity.TripStatus.COMPLETED " +
+           "WHERE t.endDate < :today " +
+           "AND t.status IN (com.travyn.trip.entity.TripStatus.OPEN, com.travyn.trip.entity.TripStatus.FULL, com.travyn.trip.entity.TripStatus.IN_PROGRESS)")
+    int completeTrips(@Param("today") LocalDate today);
 }

@@ -300,9 +300,11 @@ public class TripService {
             throw new TripAccessDeniedException("This trip is not accepting new members");
         }
 
-        // Block join requests after the trip has started
-        if (!trip.getStartDate().isAfter(LocalDate.now())) {
-            throw new TripAccessDeniedException("This trip has already started and is no longer accepting new members");
+        // Block join requests within 1 day of the trip start
+        LocalDate joinCutoff = trip.getStartDate().minusDays(1);
+        if (!LocalDate.now().isBefore(joinCutoff)) {
+            throw new TripAccessDeniedException(
+                "Join requests close 1 day before the trip starts to give everyone time to prepare");
         }
 
         // Check if already a member
