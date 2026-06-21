@@ -213,7 +213,12 @@ public class AadhaarVerificationService {
         }
 
         if (qrText.startsWith("<?xml")) {
-            // V1 XML Format
+            // V1 XML Format — used on physical (laminated) Aadhaar cards.
+            // NOTE: V1 QR codes have NO cryptographic signature, so we cannot verify
+            // authenticity. We log a warning but still accept them since many users
+            // only have physical cards. The name/DOB extracted here will still be
+            // cross-checked against the user's registration data.
+            log.warn("V1 XML Aadhaar QR detected — no cryptographic verification possible");
             java.util.regex.Matcher uidMatcher = java.util.regex.Pattern.compile("uid=\"([^\"]+)\"").matcher(qrText);
             if (uidMatcher.find()) {
                 String uid = uidMatcher.group(1);
@@ -262,14 +267,13 @@ public class AadhaarVerificationService {
             byte[] dataBytes = new byte[decompressedBytes.length - 256];
             System.arraycopy(decompressedBytes, 0, dataBytes, 0, dataBytes.length);
 
-            boolean isSignatureValid = false;
-            try {
-                isSignatureValid = verifyRsaSignature(dataBytes, signatureBytes);
-            } catch (Exception e) {
-                log.warn("Real signature verification failed or missing certificate, bypassing for development.", e);
+            if (!verifyRsaSignatureMultiCert(dataBytes, signatureBytes)) {
+                throw new RuntimeException(
+                    "Cryptographic signature validation failed. " +
+                    "Your Aadhaar QR may have been signed with an unsupported certificate. " +
+                    "Please try scanning the QR code from your latest e-Aadhaar PDF " +
+                    "downloaded from myaadhaar.uidai.gov.in.");
             }
-            isSignatureValid = true; // Temporary bypass for UI testing
-            if (!isSignatureValid) throw new RuntimeException("Cryptographic signature validation failed.");
 
             java.util.List<String> fields = new java.util.ArrayList<>();
             int start = 0;
@@ -388,20 +392,51 @@ public class AadhaarVerificationService {
         return dobRaw; // Return as is if format is unknown
     }
 
-    private boolean verifyRsaSignature(byte[] dataBytes, byte[] signatureBytes) {
-        try {
-            ClassPathResource certResource = new ClassPathResource("certs/uidai_auth_prod.cer");
-            CertificateFactory f = CertificateFactory.getInstance("X.509");
-            X509Certificate certificate = (X509Certificate) f.generateCertificate(certResource.getInputStream());
-            PublicKey pk = certificate.getPublicKey();
-            
-            Signature sig = Signature.getInstance("SHA256withRSA");
-            sig.initVerify(pk);
-            sig.update(dataBytes);
-            return sig.verify(signatureBytes);
-        } catch (Exception e) {
-            log.error("Signature verification error: ", e);
-            return false;
+    /**
+     * UIDAI rotates their Secure QR signing certificates periodically.
+     * We bundle all known valid offline e-KYC public key certificates
+     * (which UIDAI confirms are also used for Secure QR Code validation)
+     * and try each one until a match is found.
+     *
+     * Cert source: https://uidai.gov.in → Developer Section → Offline e-KYC certificates
+     */
+    private static final String[] UIDAI_CERT_PATHS = {
+        // Offline e-KYC certs (also used for Secure QR Code — per UIDAI docs)
+        "certs/uidai_offline_publickey_2026.cer",       // Latest — expires Feb 2029
+        "certs/uidai_offline_publickey_17022026.cer",    // expires Feb 2026
+        "certs/uidai_offline_publickey_26022021.cer",    // expires Feb 2024 (for older cards)
+        // Legacy Secure QR Code certs
+        "certs/uidai_12_06_18_cer.cer",                 // expires June 2021
+        "certs/uidai_prod_cdup.cer",                    // expires June 2020
+        // Production auth cert (fallback — for PID encryption but worth trying)
+        "certs/uidai_auth_prod.cer",                    // expires Aug 2028
+    };
+
+    private boolean verifyRsaSignatureMultiCert(byte[] dataBytes, byte[] signatureBytes) {
+        for (String certPath : UIDAI_CERT_PATHS) {
+            try {
+                ClassPathResource certResource = new ClassPathResource(certPath);
+                if (!certResource.exists()) {
+                    continue;
+                }
+                CertificateFactory f = CertificateFactory.getInstance("X.509");
+                X509Certificate certificate = (X509Certificate) f.generateCertificate(
+                        certResource.getInputStream());
+                PublicKey pk = certificate.getPublicKey();
+
+                Signature sig = Signature.getInstance("SHA256withRSA");
+                sig.initVerify(pk);
+                sig.update(dataBytes);
+                if (sig.verify(signatureBytes)) {
+                    log.info("Aadhaar QR signature verified with certificate: {}", certPath);
+                    return true;
+                }
+            } catch (Exception e) {
+                log.debug("Signature check with {} did not match: {}", certPath, e.getMessage());
+            }
         }
+        log.error("Aadhaar QR signature verification failed against all {} known UIDAI certificates",
+                  UIDAI_CERT_PATHS.length);
+        return false;
     }
 }

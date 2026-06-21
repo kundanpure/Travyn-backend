@@ -6,6 +6,7 @@ import com.travyn.kyc.dto.AadhaarPreviewResponse;
 import com.travyn.kyc.service.AadhaarVerificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ import java.util.HashMap;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Authentication", description = "Registration, login, token management")
 public class AuthController {
 
@@ -33,7 +35,7 @@ public class AuthController {
             AadhaarPreviewResponse response = aadhaarVerificationService.previewAadhaarQr(image);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Aadhaar preview failed", e);
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error occurred"));
         }
     }
@@ -49,7 +51,7 @@ public class AuthController {
             AadhaarPreviewResponse response = aadhaarVerificationService.decodeRawAndPreview(qrData);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Aadhaar raw preview failed", e);
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error occurred"));
         }
     }

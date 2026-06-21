@@ -5,6 +5,7 @@ import com.travyn.auth.repository.UserRepository;
 import com.travyn.kyc.entity.KycRecord;
 import com.travyn.kyc.service.AadhaarVerificationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +16,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/kyc")
 @RequiredArgsConstructor
+@Slf4j
 public class KycController {
 
     private final AadhaarVerificationService aadhaarVerificationService;
@@ -31,7 +33,7 @@ public class KycController {
             KycRecord record = aadhaarVerificationService.verifyAadhaarQr(user.getId(), image);
             return ResponseEntity.ok(Map.of("message", "KYC Successful", "recordId", record.getId()));
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Aadhaar QR verification failed", e);
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error occurred"));
         }
     }
@@ -51,7 +53,7 @@ public class KycController {
             KycRecord record = aadhaarVerificationService.verifyIdentityRaw(user.getId(), qrData);
             return ResponseEntity.ok(Map.of("message", "KYC Successful", "recordId", record.getId()));
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Aadhaar raw QR verification failed", e);
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error occurred"));
         }
     }

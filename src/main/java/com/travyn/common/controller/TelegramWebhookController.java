@@ -6,11 +6,9 @@ import com.travyn.safety.entity.EmergencyContact;
 import com.travyn.safety.repository.EmergencyContactRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -24,9 +22,20 @@ public class TelegramWebhookController {
     private final EmergencyContactRepository contactRepository;
     private final TelegramBotService telegramBotService;
 
+    @Value("${telegram.webhook.secret:}")
+    private String webhookSecret;
+
     @PostMapping("/webhook")
-    public ResponseEntity<String> handleWebhook(@RequestBody JsonNode payload) {
+    public ResponseEntity<String> handleWebhook(
+            @RequestHeader(value = "X-Telegram-Bot-Api-Secret-Token", required = false) String secretToken,
+            @RequestBody JsonNode payload) {
         try {
+            // Verify the request came from Telegram (if secret is configured)
+            if (webhookSecret != null && !webhookSecret.isBlank()
+                    && !webhookSecret.equals(secretToken)) {
+                log.warn("Telegram webhook rejected: invalid secret token");
+                return ResponseEntity.status(401).body("Unauthorized");
+            }
             if (payload.has("message")) {
                 JsonNode message = payload.get("message");
                 if (message.has("text") && message.has("chat")) {
