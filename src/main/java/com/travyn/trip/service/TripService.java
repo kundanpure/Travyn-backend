@@ -376,6 +376,22 @@ public class TripService {
                     NotificationType.JOIN_REQUEST,
                     tripId
             );
+        } else if (initialStatus == MemberStatus.APPROVED) {
+            // Broadcast to existing approved members
+            List<TripMember> currentMembers = tripMemberRepository.findByTripId(tripId);
+            for (TripMember m : currentMembers) {
+                if (m.getMemberStatus() == MemberStatus.APPROVED && 
+                    !m.getUserId().equals(userId) && 
+                    !m.getUserId().equals(trip.getCreatorId())) {
+                    
+                    notificationService.notifyUser(
+                            m.getUserId(),
+                            "Say hi to " + user.getFirstName() + ", the newest member of \"" + trip.getTitle() + "\"! 🎉",
+                            NotificationType.NEW_MEMBER_JOINED,
+                            tripId
+                    );
+                }
+            }
         }
 
         return mapToTripMemberDTO(member, user);
@@ -438,6 +454,22 @@ public class TripService {
                     NotificationType.JOIN_APPROVED,
                     tripId
             );
+
+            // Broadcast to existing approved members
+            List<TripMember> currentMembers = tripMemberRepository.findByTripId(tripId);
+            for (TripMember m : currentMembers) {
+                if (m.getMemberStatus() == MemberStatus.APPROVED && 
+                    !m.getUserId().equals(member.getUserId()) && 
+                    !m.getUserId().equals(trip.getCreatorId())) {
+                    
+                    notificationService.notifyUser(
+                            m.getUserId(),
+                            "Say hi to " + user.getFirstName() + ", the newest member of \"" + trip.getTitle() + "\"! 🎉",
+                            NotificationType.NEW_MEMBER_JOINED,
+                            tripId
+                    );
+                }
+            }
         } else if (newStatus == MemberStatus.REJECTED) {
             notificationService.notifyUser(
                     member.getUserId(),
@@ -521,6 +553,24 @@ public class TripService {
             trip.setStatus(TripStatus.OPEN);
             tripRepository.save(trip);
             log.info("Trip {} status changed from FULL to OPEN", trip.getTripCode());
+        }
+
+        // Broadcast to existing members if the user was APPROVED
+        if (previousStatus == MemberStatus.APPROVED) {
+            User user = userRepository.findById(userId).orElse(null);
+            String userName = user != null ? user.getFirstName() : "A member";
+            
+            List<TripMember> currentMembers = tripMemberRepository.findByTripId(tripId);
+            for (TripMember m : currentMembers) {
+                if (m.getMemberStatus() == MemberStatus.APPROVED) {
+                    notificationService.notifyUser(
+                            m.getUserId(),
+                            userName + " has left \"" + trip.getTitle() + "\".",
+                            NotificationType.MEMBER_LEFT,
+                            tripId
+                    );
+                }
+            }
         }
     }
 
