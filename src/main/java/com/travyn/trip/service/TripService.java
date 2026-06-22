@@ -221,6 +221,47 @@ public class TripService {
     }
 
     @Transactional
+    public void transferOwnership(UUID currentCreatorId, UUID tripId, UUID newCreatorId) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+
+        if (!trip.getCreatorId().equals(currentCreatorId)) {
+            throw new TripAccessDeniedException("Only the current trip creator can transfer ownership");
+        }
+
+        TripMember newCreatorMember = tripMemberRepository.findByTripIdAndUserId(tripId, newCreatorId)
+                .orElseThrow(() -> new UserNotFoundException("The selected user is not a member of this trip"));
+
+        if (newCreatorMember.getMemberStatus() != MemberStatus.APPROVED) {
+            throw new TripAccessDeniedException("Ownership can only be transferred to an approved member");
+        }
+
+        TripMember currentCreatorMember = tripMemberRepository.findByTripIdAndUserId(tripId, currentCreatorId)
+                .orElseThrow(() -> new UserNotFoundException("Creator member record not found"));
+
+        // Demote current creator
+        currentCreatorMember.setMemberRole(MemberRole.MEMBER);
+        tripMemberRepository.save(currentCreatorMember);
+
+        // Promote new creator
+        newCreatorMember.setMemberRole(MemberRole.CREATOR);
+        tripMemberRepository.save(newCreatorMember);
+
+        // Update trip
+        trip.setCreatorId(newCreatorId);
+        tripRepository.save(trip);
+
+        log.info("Trip ownership transferred: {} from {} to {}", trip.getTripCode(), currentCreatorId, newCreatorId);
+
+        notificationService.notifyUser(
+                newCreatorId,
+                "You are now the Admin of \"" + trip.getTitle() + "\"! 👑",
+                NotificationType.JOIN_APPROVED,
+                tripId
+        );
+    }
+
+    @Transactional
     public List<TripDTO> getMyTrips(UUID userId) {
         // Get ALL memberships for this user (CREATOR, APPROVED, PENDING, etc.)
         List<TripMember> memberships = tripMemberRepository.findByUserId(userId);
