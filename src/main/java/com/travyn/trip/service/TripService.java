@@ -68,6 +68,11 @@ public class TripService {
             }
         }
 
+        // Check for overlapping trips
+        if (tripRepository.hasOverlappingTrips(userId, request.getStartDate(), request.getEndDate(), null)) {
+            throw new TripAccessDeniedException("You already have an approved trip scheduled during these dates");
+        }
+
         Trip trip = Trip.builder()
                 .creatorId(userId)
                 .title(request.getTitle().trim())
@@ -129,10 +134,14 @@ public class TripService {
                 .orElseThrow(() -> new TripNotFoundException("Trip not found"));
 
         if (!trip.getCreatorId().equals(userId)) {
-            throw new TripAccessDeniedException("Only the trip creator can update this trip");
+            throw new TripAccessDeniedException("Only the trip creator can update the trip");
         }
 
-        // Block edits on completed or cancelled trips
+        if (tripRepository.hasOverlappingTrips(userId, request.getStartDate(), request.getEndDate(), tripId)) {
+            throw new TripAccessDeniedException("You already have another approved trip scheduled during these new dates");
+        }
+
+        // Allow partial updates on completed or cancelled trips
         if (trip.getStatus() == TripStatus.COMPLETED || trip.getStatus() == TripStatus.CANCELLED) {
             throw new TripAccessDeniedException("Cannot edit a trip that is " + trip.getStatus().name().toLowerCase());
         }
@@ -331,6 +340,12 @@ public class TripService {
                 ? MemberStatus.APPROVED
                 : MemberStatus.PENDING;
 
+        if (initialStatus == MemberStatus.APPROVED) {
+            if (tripRepository.hasOverlappingTrips(userId, trip.getStartDate(), trip.getEndDate(), null)) {
+                throw new TripAccessDeniedException("You already have an approved trip scheduled during these dates");
+            }
+        }
+
         TripMember member = TripMember.builder()
                 .tripId(tripId)
                 .userId(userId)
@@ -372,21 +387,25 @@ public class TripService {
                 .orElseThrow(() -> new TripNotFoundException("Trip not found"));
 
         if (!trip.getCreatorId().equals(creatorId)) {
-            throw new TripAccessDeniedException("Only the trip creator can manage join requests");
+            throw new TripAccessDeniedException("Only the trip creator can handle join requests");
         }
 
-        TripMember member = tripMemberRepository.findById(memberId)
-                .orElseThrow(() -> new TripNotFoundException("Member request not found"));
+        TripMember member = tripMemberRepository.findByTripIdAndUserId(tripId, memberId)
+                .orElseThrow(() -> new UserNotFoundException("Member request not found"));
 
-        if (!member.getTripId().equals(tripId)) {
-            throw new TripAccessDeniedException("This member request does not belong to this trip");
+        if (member.getMemberStatus() != MemberStatus.PENDING) {
+            throw new IllegalStateException("Only PENDING requests can be handled");
         }
 
-        // If approving, check capacity
+        // If approving, check capacity and overlap
         if (newStatus == MemberStatus.APPROVED) {
+            if (tripRepository.hasOverlappingTrips(member.getUserId(), trip.getStartDate(), trip.getEndDate(), null)) {
+                throw new TripAccessDeniedException("Cannot approve: This user has already committed to another trip on these dates");
+            }
+
             int approvedCount = tripMemberRepository.countByTripIdAndMemberStatus(tripId, MemberStatus.APPROVED);
             if (approvedCount >= trip.getMaxSize()) {
-                throw new TripFullException("This trip is full, cannot approve more members");
+                throw new TripFullException("This trip is already full");
             }
         }
 
