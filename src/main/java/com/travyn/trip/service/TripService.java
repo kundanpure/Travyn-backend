@@ -493,6 +493,37 @@ public class TripService {
         return code.toString();
     }
 
+    @Transactional
+    public void leaveTrip(UUID userId, UUID tripId) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+
+        if (trip.getCreatorId().equals(userId)) {
+            throw new TripAccessDeniedException("The trip creator cannot leave the trip. You must cancel the trip instead.");
+        }
+
+        TripMember member = tripMemberRepository.findByTripIdAndUserId(tripId, userId)
+                .orElseThrow(() -> new UserNotFoundException("You are not a member of this trip"));
+
+        // Check deadline: must leave before 1 day prior to start date
+        LocalDate cutoffDate = trip.getStartDate().minusDays(1);
+        if (!LocalDate.now().isBefore(cutoffDate)) {
+            throw new TripAccessDeniedException("It is too late to leave this trip. You must withdraw before " + cutoffDate.toString() + ".");
+        }
+
+        MemberStatus previousStatus = member.getMemberStatus();
+        tripMemberRepository.delete(member);
+
+        log.info("User {} left trip {}", userId, trip.getTripCode());
+
+        // If trip was full and an approved member left, open it up
+        if (previousStatus == MemberStatus.APPROVED && trip.getStatus() == TripStatus.FULL) {
+            trip.setStatus(TripStatus.OPEN);
+            tripRepository.save(trip);
+            log.info("Trip {} status changed from FULL to OPEN", trip.getTripCode());
+        }
+    }
+
     private TripDTO mapToTripDTO(Trip trip, User creator) {
         int memberCount = tripMemberRepository.countByTripIdAndMemberStatus(trip.getId(), MemberStatus.APPROVED);
         return TripDTO.builder()
