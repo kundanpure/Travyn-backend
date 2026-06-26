@@ -312,6 +312,11 @@ public class TripService {
             throw new AlreadyMemberException("You have already joined or requested to join this trip");
         });
 
+        // Check if user is already in an ongoing trip
+        if (tripMemberRepository.isUserInOngoingTrip(userId)) {
+            throw new AlreadyMemberException("You are already in an ongoing trip. Complete or leave your current trip before joining a new one.");
+        }
+
         // Check if trip is full
         int approvedCount = tripMemberRepository.countByTripIdAndMemberStatus(tripId, MemberStatus.APPROVED);
         if (approvedCount >= trip.getMaxSize()) {

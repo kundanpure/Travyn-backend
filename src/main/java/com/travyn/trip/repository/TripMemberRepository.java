@@ -30,4 +30,11 @@ public interface TripMemberRepository extends JpaRepository<TripMember, UUID> {
     boolean hasActiveSharedTrip(@org.springframework.data.repository.query.Param("userA") UUID userA, 
                                 @org.springframework.data.repository.query.Param("userB") UUID userB, 
                                 @org.springframework.data.repository.query.Param("cutoffDate") java.time.LocalDate cutoffDate);
+
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT COUNT(m) > 0 FROM TripMember m JOIN Trip t ON m.tripId = t.id " +
+            "WHERE m.userId = :userId AND m.memberStatus = 'APPROVED' " +
+            "AND t.startDate <= CURRENT_DATE AND t.endDate >= CURRENT_DATE " +
+            "AND t.status IN ('IN_PROGRESS', 'OPEN', 'FULL')")
+    boolean isUserInOngoingTrip(@org.springframework.data.repository.query.Param("userId") UUID userId);
 }
