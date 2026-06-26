@@ -101,6 +101,27 @@ public class TripController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/{id}/leave")
+    @Operation(summary = "Leave a trip")
+    public ResponseEntity<Void> leaveTrip(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID id) {
+        User user = findUserByEmail(email);
+        tripService.leaveTrip(user.getId(), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/transfer/{newCreatorId}")
+    @Operation(summary = "Transfer trip ownership to another member")
+    public ResponseEntity<Void> transferOwnership(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID id,
+            @PathVariable UUID newCreatorId) {
+        User user = findUserByEmail(email);
+        tripService.transferOwnership(user.getId(), id, newCreatorId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/join")
     @Operation(summary = "Request to join a trip")
     public ResponseEntity<TripMemberDTO> requestJoin(

@@ -65,4 +65,16 @@ public interface TripRepository extends JpaRepository<Trip, UUID> {
            "WHERE t.endDate < :today " +
            "AND t.status IN (com.travyn.trip.entity.TripStatus.OPEN, com.travyn.trip.entity.TripStatus.FULL, com.travyn.trip.entity.TripStatus.IN_PROGRESS)")
     int completeTrips(@Param("today") LocalDate today);
+
+    @Query("SELECT COUNT(t) > 0 FROM Trip t " +
+           "LEFT JOIN TripMember m ON t.id = m.tripId AND m.memberStatus = 'APPROVED' " +
+           "WHERE (t.creatorId = :userId OR m.userId = :userId) " +
+           "AND t.status NOT IN (com.travyn.trip.entity.TripStatus.CANCELLED, com.travyn.trip.entity.TripStatus.COMPLETED) " +
+           "AND t.startDate <= :newEndDate " +
+           "AND t.endDate >= :newStartDate " +
+           "AND (:excludeTripId IS NULL OR t.id != :excludeTripId)")
+    boolean hasOverlappingTrips(@Param("userId") UUID userId, 
+                                @Param("newStartDate") LocalDate newStartDate, 
+                                @Param("newEndDate") LocalDate newEndDate,
+                                @Param("excludeTripId") UUID excludeTripId);
 }

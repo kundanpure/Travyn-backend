@@ -68,6 +68,11 @@ public class TripService {
             }
         }
 
+        // Check for overlapping trips
+        if (tripRepository.hasOverlappingTrips(userId, request.getStartDate(), request.getEndDate(), null)) {
+            throw new TripAccessDeniedException("You already have an approved trip scheduled during these dates");
+        }
+
         Trip trip = Trip.builder()
                 .creatorId(userId)
                 .title(request.getTitle().trim())
@@ -129,10 +134,14 @@ public class TripService {
                 .orElseThrow(() -> new TripNotFoundException("Trip not found"));
 
         if (!trip.getCreatorId().equals(userId)) {
-            throw new TripAccessDeniedException("Only the trip creator can update this trip");
+            throw new TripAccessDeniedException("Only the trip creator can update the trip");
         }
 
-        // Block edits on completed or cancelled trips
+        if (tripRepository.hasOverlappingTrips(userId, request.getStartDate(), request.getEndDate(), tripId)) {
+            throw new TripAccessDeniedException("You already have another approved trip scheduled during these new dates");
+        }
+
+        // Allow partial updates on completed or cancelled trips
         if (trip.getStatus() == TripStatus.COMPLETED || trip.getStatus() == TripStatus.CANCELLED) {
             throw new TripAccessDeniedException("Cannot edit a trip that is " + trip.getStatus().name().toLowerCase());
         }
@@ -209,6 +218,47 @@ public class TripService {
         tripRepository.save(trip);
 
         log.info("Trip cancelled: {} by user: {}", trip.getTripCode(), userId);
+    }
+
+    @Transactional
+    public void transferOwnership(UUID currentCreatorId, UUID tripId, UUID newCreatorId) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+
+        if (!trip.getCreatorId().equals(currentCreatorId)) {
+            throw new TripAccessDeniedException("Only the current trip creator can transfer ownership");
+        }
+
+        TripMember newCreatorMember = tripMemberRepository.findByTripIdAndUserId(tripId, newCreatorId)
+                .orElseThrow(() -> new UserNotFoundException("The selected user is not a member of this trip"));
+
+        if (newCreatorMember.getMemberStatus() != MemberStatus.APPROVED) {
+            throw new TripAccessDeniedException("Ownership can only be transferred to an approved member");
+        }
+
+        TripMember currentCreatorMember = tripMemberRepository.findByTripIdAndUserId(tripId, currentCreatorId)
+                .orElseThrow(() -> new UserNotFoundException("Creator member record not found"));
+
+        // Demote current creator
+        currentCreatorMember.setMemberRole(MemberRole.MEMBER);
+        tripMemberRepository.save(currentCreatorMember);
+
+        // Promote new creator
+        newCreatorMember.setMemberRole(MemberRole.CREATOR);
+        tripMemberRepository.save(newCreatorMember);
+
+        // Update trip
+        trip.setCreatorId(newCreatorId);
+        tripRepository.save(trip);
+
+        log.info("Trip ownership transferred: {} from {} to {}", trip.getTripCode(), currentCreatorId, newCreatorId);
+
+        notificationService.notifyUser(
+                newCreatorId,
+                "You are now the Admin of \"" + trip.getTitle() + "\"! 👑",
+                NotificationType.JOIN_APPROVED,
+                tripId
+        );
     }
 
     @Transactional
@@ -336,6 +386,12 @@ public class TripService {
                 ? MemberStatus.APPROVED
                 : MemberStatus.PENDING;
 
+        if (initialStatus == MemberStatus.APPROVED) {
+            if (tripRepository.hasOverlappingTrips(userId, trip.getStartDate(), trip.getEndDate(), null)) {
+                throw new TripAccessDeniedException("You already have an approved trip scheduled during these dates");
+            }
+        }
+
         TripMember member = TripMember.builder()
                 .tripId(tripId)
                 .userId(userId)
@@ -366,6 +422,22 @@ public class TripService {
                     NotificationType.JOIN_REQUEST,
                     tripId
             );
+        } else if (initialStatus == MemberStatus.APPROVED) {
+            // Broadcast to existing approved members
+            List<TripMember> currentMembers = tripMemberRepository.findByTripId(tripId);
+            for (TripMember m : currentMembers) {
+                if (m.getMemberStatus() == MemberStatus.APPROVED && 
+                    !m.getUserId().equals(userId) && 
+                    !m.getUserId().equals(trip.getCreatorId())) {
+                    
+                    notificationService.notifyUser(
+                            m.getUserId(),
+                            "Say hi to " + user.getFirstName() + ", the newest member of \"" + trip.getTitle() + "\"! 🎉",
+                            NotificationType.NEW_MEMBER_JOINED,
+                            tripId
+                    );
+                }
+            }
         }
 
         return mapToTripMemberDTO(member, user);
@@ -377,21 +449,25 @@ public class TripService {
                 .orElseThrow(() -> new TripNotFoundException("Trip not found"));
 
         if (!trip.getCreatorId().equals(creatorId)) {
-            throw new TripAccessDeniedException("Only the trip creator can manage join requests");
+            throw new TripAccessDeniedException("Only the trip creator can handle join requests");
         }
 
-        TripMember member = tripMemberRepository.findById(memberId)
-                .orElseThrow(() -> new TripNotFoundException("Member request not found"));
+        TripMember member = tripMemberRepository.findByTripIdAndUserId(tripId, memberId)
+                .orElseThrow(() -> new UserNotFoundException("Member request not found"));
 
-        if (!member.getTripId().equals(tripId)) {
-            throw new TripAccessDeniedException("This member request does not belong to this trip");
+        if (member.getMemberStatus() != MemberStatus.PENDING) {
+            throw new IllegalStateException("Only PENDING requests can be handled");
         }
 
-        // If approving, check capacity
+        // If approving, check capacity and overlap
         if (newStatus == MemberStatus.APPROVED) {
+            if (tripRepository.hasOverlappingTrips(member.getUserId(), trip.getStartDate(), trip.getEndDate(), null)) {
+                throw new TripAccessDeniedException("Cannot approve: This user has already committed to another trip on these dates");
+            }
+
             int approvedCount = tripMemberRepository.countByTripIdAndMemberStatus(tripId, MemberStatus.APPROVED);
             if (approvedCount >= trip.getMaxSize()) {
-                throw new TripFullException("This trip is full, cannot approve more members");
+                throw new TripFullException("This trip is already full");
             }
         }
 
@@ -424,6 +500,22 @@ public class TripService {
                     NotificationType.JOIN_APPROVED,
                     tripId
             );
+
+            // Broadcast to existing approved members
+            List<TripMember> currentMembers = tripMemberRepository.findByTripId(tripId);
+            for (TripMember m : currentMembers) {
+                if (m.getMemberStatus() == MemberStatus.APPROVED && 
+                    !m.getUserId().equals(member.getUserId()) && 
+                    !m.getUserId().equals(trip.getCreatorId())) {
+                    
+                    notificationService.notifyUser(
+                            m.getUserId(),
+                            "Say hi to " + user.getFirstName() + ", the newest member of \"" + trip.getTitle() + "\"! 🎉",
+                            NotificationType.NEW_MEMBER_JOINED,
+                            tripId
+                    );
+                }
+            }
         } else if (newStatus == MemberStatus.REJECTED) {
             notificationService.notifyUser(
                     member.getUserId(),
@@ -477,6 +569,55 @@ public class TripService {
             code.append(TRIP_CODE_CHARS.charAt(RANDOM.nextInt(TRIP_CODE_CHARS.length())));
         }
         return code.toString();
+    }
+
+    @Transactional
+    public void leaveTrip(UUID userId, UUID tripId) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+
+        if (trip.getCreatorId().equals(userId)) {
+            throw new TripAccessDeniedException("The trip creator cannot leave the trip. You must cancel the trip instead.");
+        }
+
+        TripMember member = tripMemberRepository.findByTripIdAndUserId(tripId, userId)
+                .orElseThrow(() -> new UserNotFoundException("You are not a member of this trip"));
+
+        // Check deadline: must leave before 1 day prior to start date
+        LocalDate cutoffDate = trip.getStartDate().minusDays(1);
+        if (!LocalDate.now().isBefore(cutoffDate)) {
+            throw new TripAccessDeniedException("It is too late to leave this trip. You must withdraw before " + cutoffDate.toString() + ".");
+        }
+
+        MemberStatus previousStatus = member.getMemberStatus();
+        tripMemberRepository.delete(member);
+
+        log.info("User {} left trip {}", userId, trip.getTripCode());
+
+        // If trip was full and an approved member left, open it up
+        if (previousStatus == MemberStatus.APPROVED && trip.getStatus() == TripStatus.FULL) {
+            trip.setStatus(TripStatus.OPEN);
+            tripRepository.save(trip);
+            log.info("Trip {} status changed from FULL to OPEN", trip.getTripCode());
+        }
+
+        // Broadcast to existing members if the user was APPROVED
+        if (previousStatus == MemberStatus.APPROVED) {
+            User user = userRepository.findById(userId).orElse(null);
+            String userName = user != null ? user.getFirstName() : "A member";
+            
+            List<TripMember> currentMembers = tripMemberRepository.findByTripId(tripId);
+            for (TripMember m : currentMembers) {
+                if (m.getMemberStatus() == MemberStatus.APPROVED) {
+                    notificationService.notifyUser(
+                            m.getUserId(),
+                            userName + " has left \"" + trip.getTitle() + "\".",
+                            NotificationType.MEMBER_LEFT,
+                            tripId
+                    );
+                }
+            }
+        }
     }
 
     private TripDTO mapToTripDTO(Trip trip, User creator) {
