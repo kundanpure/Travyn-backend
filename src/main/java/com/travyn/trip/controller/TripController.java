@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -29,6 +30,9 @@ public class TripController {
 
     private final TripService tripService;
     private final UserRepository userRepository;
+
+    @Value("${app.base-url:http://localhost:3000}")
+    private String baseUrl;
 
     @PostMapping
     @Operation(summary = "Create a new trip")
@@ -177,6 +181,52 @@ public class TripController {
     public ResponseEntity<List<TripReviewDTO>> getTripReviews(@PathVariable UUID id) {
         List<TripReviewDTO> reviews = tripService.getTripReviews(id);
         return ResponseEntity.ok(reviews);
+    }
+
+    // ---------------------------------------------------------------
+    //  TRIP INVITE LINK ENDPOINTS
+    // ---------------------------------------------------------------
+
+    @PostMapping("/{id}/invite")
+    @Operation(summary = "Generate an invite link for the trip")
+    public ResponseEntity<TripInviteTokenDTO> generateInviteLink(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID id,
+            @RequestBody InviteLinkRequest request) {
+        User user = findUserByEmail(email);
+        TripInviteTokenDTO inviteLink = tripService.generateInviteLink(user.getId(), id, request, baseUrl);
+        return ResponseEntity.status(HttpStatus.CREATED).body(inviteLink);
+    }
+
+    @PostMapping("/invite/{token}/accept")
+    @Operation(summary = "Accept a trip invite (join via invite link)")
+    public ResponseEntity<TripMemberDTO> acceptInvite(
+            @AuthenticationPrincipal String email,
+            @PathVariable String token) {
+        User user = findUserByEmail(email);
+        TripMemberDTO member = tripService.acceptInvite(user.getId(), token);
+        return ResponseEntity.status(HttpStatus.CREATED).body(member);
+    }
+
+    @GetMapping("/{id}/invite-links")
+    @Operation(summary = "List active invite links for the trip (creator only)")
+    public ResponseEntity<List<TripInviteTokenDTO>> getInviteLinks(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID id) {
+        User user = findUserByEmail(email);
+        List<TripInviteTokenDTO> links = tripService.getInviteLinks(user.getId(), id, baseUrl);
+        return ResponseEntity.ok(links);
+    }
+
+    @DeleteMapping("/{id}/invite-links/{inviteId}")
+    @Operation(summary = "Revoke an invite link (creator only)")
+    public ResponseEntity<Void> revokeInviteLink(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID id,
+            @PathVariable UUID inviteId) {
+        User user = findUserByEmail(email);
+        tripService.revokeInviteLink(user.getId(), id, inviteId);
+        return ResponseEntity.noContent().build();
     }
 
     private User findUserByEmail(String email) {

@@ -61,3 +61,5 @@ databaseChangeLog:
       file: db/changelog/030-alter-location-share-links-contact-nullable.yaml
   - include:
       file: db/changelog/031-create-destination-insights-table.yaml
+  - include:
+      file: db/changelog/032-create-trip-invite-tokens-table.yaml

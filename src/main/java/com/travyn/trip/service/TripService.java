@@ -22,6 +22,7 @@ import com.travyn.trip.exception.TripNotFoundException;
 import com.travyn.trip.repository.TripMemberRepository;
 import com.travyn.trip.repository.TripRepository;
 import com.travyn.trip.repository.TripReviewRepository;
+import com.travyn.trip.repository.TripInviteTokenRepository;
 import com.travyn.profile.repository.ProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +33,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 
@@ -47,6 +51,7 @@ public class TripService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final ProfileRepository profileRepository;
+    private final TripInviteTokenRepository tripInviteTokenRepository;
 
     private static final String TRIP_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int TRIP_CODE_LENGTH = 8;
@@ -753,6 +758,231 @@ public class TripService {
                 .rating(review.getRating())
                 .textReview(review.getTextReview())
                 .createdAt(review.getCreatedAt())
+                .build();
+    }
+
+    // ---------------------------------------------------------------
+    //  TRIP INVITE LINK METHODS
+    // ---------------------------------------------------------------
+
+    @Transactional
+    public TripInviteTokenDTO generateInviteLink(UUID userId, UUID tripId, InviteLinkRequest request, String baseUrl) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+
+        if (!trip.getCreatorId().equals(userId)) {
+            tripMemberRepository.findByTripIdAndUserId(tripId, userId)
+                    .filter(m -> m.getMemberStatus() == MemberStatus.APPROVED)
+                    .orElseThrow(() -> new TripAccessDeniedException("Only approved trip members can generate invite links"));
+        }
+
+        if (trip.getStatus() == TripStatus.CANCELLED || trip.getStatus() == TripStatus.COMPLETED) {
+            throw new TripAccessDeniedException("Cannot generate invite links for cancelled or completed trips");
+        }
+
+        byte[] randomBytes = new byte[16];
+        RANDOM.nextBytes(randomBytes);
+        String token = HexFormat.of().formatHex(randomBytes);
+
+        int expiryDays = request.getExpiresInDays() > 0 ? request.getExpiresInDays() : 7;
+
+        TripInviteToken inviteToken = TripInviteToken.builder()
+                .tripId(tripId)
+                .invitedBy(userId)
+                .token(token)
+                .maxUses(request.getMaxUses())
+                .autoApprove(request.isAutoApprove())
+                .expiresAt(Instant.now().plus(expiryDays, ChronoUnit.DAYS))
+                .build();
+
+        inviteToken = tripInviteTokenRepository.save(inviteToken);
+        log.info("Invite link generated for trip {} by user {}", trip.getTripCode(), userId);
+
+        return mapToInviteTokenDTO(inviteToken, baseUrl);
+    }
+
+    @Transactional(readOnly = true)
+    public TripInvitePreviewDTO previewInvite(String token) {
+        TripInviteToken inviteToken = tripInviteTokenRepository.findByTokenAndIsActiveTrue(token)
+                .orElseThrow(() -> new TripNotFoundException("Invalid or expired invite link"));
+
+        Trip trip = tripRepository.findById(inviteToken.getTripId())
+                .orElseThrow(() -> new TripNotFoundException("Trip no longer exists"));
+
+        User creator = userRepository.findById(trip.getCreatorId())
+                .orElseThrow(() -> new UserNotFoundException("Trip creator not found"));
+
+        User inviter = userRepository.findById(inviteToken.getInvitedBy())
+                .orElseThrow(() -> new UserNotFoundException("Inviter not found"));
+
+        int memberCount = tripMemberRepository.countByTripIdAndMemberStatus(trip.getId(), MemberStatus.APPROVED);
+        boolean isExpired = Instant.now().isAfter(inviteToken.getExpiresAt());
+        boolean isFull = memberCount >= trip.getMaxSize();
+
+        String creatorPhoto = profileRepository.findByUserId(creator.getId())
+                .map(p -> p.getProfilePhotoUrl())
+                .orElse(null);
+
+        return TripInvitePreviewDTO.builder()
+                .tripId(trip.getId())
+                .tripTitle(trip.getTitle())
+                .destination(trip.getDestination())
+                .description(trip.getDescription())
+                .startDate(trip.getStartDate())
+                .endDate(trip.getEndDate())
+                .tripType(trip.getTripType().name())
+                .creatorName(creator.getFirstName() + " " + creator.getLastName())
+                .creatorProfilePhoto(creatorPhoto)
+                .creatorVerified(creator.getStatus() == com.travyn.auth.entity.UserStatus.KYC_VERIFIED)
+                .memberCount(memberCount)
+                .maxSize(trip.getMaxSize())
+                .coverImageUrl(trip.getCoverImageUrl())
+                .womenOnly(trip.isWomenOnly())
+                .isFull(isFull)
+                .isExpired(isExpired)
+                .invitedByName(inviter.getFirstName() + " " + inviter.getLastName())
+                .build();
+    }
+
+    @Transactional
+    public TripMemberDTO acceptInvite(UUID userId, String token) {
+        TripInviteToken inviteToken = tripInviteTokenRepository.findByTokenAndIsActiveTrue(token)
+                .orElseThrow(() -> new TripNotFoundException("Invalid or expired invite link"));
+
+        if (Instant.now().isAfter(inviteToken.getExpiresAt())) {
+            throw new TripAccessDeniedException("This invite link has expired");
+        }
+
+        if (inviteToken.getMaxUses() > 0 && inviteToken.getUsedCount() >= inviteToken.getMaxUses()) {
+            throw new TripAccessDeniedException("This invite link has reached its usage limit");
+        }
+
+        Trip trip = tripRepository.findById(inviteToken.getTripId())
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+
+        if (trip.getStatus() == TripStatus.CANCELLED || trip.getStatus() == TripStatus.COMPLETED) {
+            throw new TripAccessDeniedException("This trip is no longer active");
+        }
+
+        tripMemberRepository.findByTripIdAndUserId(trip.getId(), userId).ifPresent(existing -> {
+            throw new AlreadyMemberException("You are already a member of this trip");
+        });
+
+        int approvedCount = tripMemberRepository.countByTripIdAndMemberStatus(trip.getId(), MemberStatus.APPROVED);
+        if (approvedCount >= trip.getMaxSize()) {
+            throw new TripFullException("This trip is full");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        if (trip.isWomenOnly()) {
+            if (user.getGender() != com.travyn.auth.entity.Gender.FEMALE
+                    || user.getStatus() != com.travyn.auth.entity.UserStatus.KYC_VERIFIED) {
+                throw new TripAccessDeniedException("This is a women-only trip. Only KYC-verified women can join.");
+            }
+        }
+
+        MemberStatus initialStatus = inviteToken.isAutoApprove()
+                ? MemberStatus.APPROVED
+                : (trip.getApprovalMode() == ApprovalMode.AUTO ? MemberStatus.APPROVED : MemberStatus.PENDING);
+
+        if (initialStatus == MemberStatus.APPROVED) {
+            if (tripRepository.hasOverlappingTrips(userId, trip.getStartDate(), trip.getEndDate(), null)) {
+                throw new TripAccessDeniedException("You already have an approved trip scheduled during these dates");
+            }
+        }
+
+        TripMember member = TripMember.builder()
+                .tripId(trip.getId())
+                .userId(userId)
+                .memberRole(MemberRole.MEMBER)
+                .memberStatus(initialStatus)
+                .build();
+
+        member = tripMemberRepository.save(member);
+
+        inviteToken.setUsedCount(inviteToken.getUsedCount() + 1);
+        tripInviteTokenRepository.save(inviteToken);
+
+        log.info("User {} joined trip {} via invite link", userId, trip.getTripCode());
+
+        if (initialStatus == MemberStatus.APPROVED) {
+            int newCount = tripMemberRepository.countByTripIdAndMemberStatus(trip.getId(), MemberStatus.APPROVED);
+            if (newCount >= trip.getMaxSize()) {
+                trip.setStatus(TripStatus.FULL);
+                tripRepository.save(trip);
+            }
+        }
+
+        notificationService.notifyUser(
+                inviteToken.getInvitedBy(),
+                user.getFirstName() + " joined \"" + trip.getTitle() + "\" via your invite link!",
+                NotificationType.TRIP_INVITE_ACCEPTED,
+                trip.getId()
+        );
+
+        if (!inviteToken.getInvitedBy().equals(trip.getCreatorId())) {
+            notificationService.notifyUser(
+                    trip.getCreatorId(),
+                    user.getFirstName() + " joined \"" + trip.getTitle() + "\" via invite link",
+                    initialStatus == MemberStatus.APPROVED
+                            ? NotificationType.NEW_MEMBER_JOINED
+                            : NotificationType.JOIN_REQUEST,
+                    trip.getId()
+            );
+        }
+
+        return mapToTripMemberDTO(member, user);
+    }
+
+    @Transactional
+    public void revokeInviteLink(UUID userId, UUID tripId, UUID inviteTokenId) {
+        Trip revokeTrip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+
+        if (!revokeTrip.getCreatorId().equals(userId)) {
+            throw new TripAccessDeniedException("Only the trip creator can revoke invite links");
+        }
+
+        TripInviteToken revokeTarget = tripInviteTokenRepository.findById(inviteTokenId)
+                .orElseThrow(() -> new TripNotFoundException("Invite link not found"));
+
+        if (!revokeTarget.getTripId().equals(tripId)) {
+            throw new TripAccessDeniedException("Invite link does not belong to this trip");
+        }
+
+        revokeTarget.setActive(false);
+        tripInviteTokenRepository.save(revokeTarget);
+        log.info("Invite link {} revoked for trip {} by user {}", inviteTokenId, revokeTrip.getTripCode(), userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TripInviteTokenDTO> getInviteLinks(UUID userId, UUID tripId, String baseUrl) {
+        Trip linksTrip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+
+        if (!linksTrip.getCreatorId().equals(userId)) {
+            throw new TripAccessDeniedException("Only the trip creator can view invite links");
+        }
+
+        return tripInviteTokenRepository.findByTripIdAndIsActiveTrueOrderByCreatedAtDesc(tripId)
+                .stream()
+                .map(t -> mapToInviteTokenDTO(t, baseUrl))
+                .toList();
+    }
+
+    private TripInviteTokenDTO mapToInviteTokenDTO(TripInviteToken invToken, String baseUrl) {
+        return TripInviteTokenDTO.builder()
+                .id(invToken.getId())
+                .token(invToken.getToken())
+                .link(baseUrl + "/invite/" + invToken.getToken())
+                .maxUses(invToken.getMaxUses())
+                .usedCount(invToken.getUsedCount())
+                .autoApprove(invToken.isAutoApprove())
+                .isActive(invToken.isActive())
+                .expiresAt(invToken.getExpiresAt())
+                .createdAt(invToken.getCreatedAt())
                 .build();
     }
 }

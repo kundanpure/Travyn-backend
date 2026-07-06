@@ -13,5 +13,6 @@ public enum NotificationType {
     LOCATION_SHARED,
     DESTINATION_ALERT,
     NEW_MEMBER_JOINED,
-    MEMBER_LEFT
+    MEMBER_LEFT,
+    TRIP_INVITE_ACCEPTED
 }
