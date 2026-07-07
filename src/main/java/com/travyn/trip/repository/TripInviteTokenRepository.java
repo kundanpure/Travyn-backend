@@ -12,4 +12,8 @@ public interface TripInviteTokenRepository extends JpaRepository<TripInviteToken
     Optional<TripInviteToken> findByTokenAndIsActiveTrue(String token);
 
     List<TripInviteToken> findByTripIdAndIsActiveTrueOrderByCreatedAtDesc(UUID tripId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("DELETE FROM TripInviteToken t WHERE t.tripId = :tripId")
+    void deleteByTripId(@org.springframework.data.repository.query.Param("tripId") UUID tripId);
 }

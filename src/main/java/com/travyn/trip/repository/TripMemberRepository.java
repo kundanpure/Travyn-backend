@@ -14,6 +14,10 @@ public interface TripMemberRepository extends JpaRepository<TripMember, UUID> {
 
     List<TripMember> findByTripId(UUID tripId);
 
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("DELETE FROM TripMember t WHERE t.tripId = :tripId")
+    void deleteByTripId(@org.springframework.data.repository.query.Param("tripId") UUID tripId);
+
     List<TripMember> findByUserId(UUID userId);
 
     Optional<TripMember> findByTripIdAndUserId(UUID tripId, UUID userId);

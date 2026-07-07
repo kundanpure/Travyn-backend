@@ -95,15 +95,7 @@ public class TripController {
         return ResponseEntity.ok(trip);
     }
 
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Cancel a trip (creator only)")
-    public ResponseEntity<Void> cancelTrip(
-            @AuthenticationPrincipal String email,
-            @PathVariable UUID id) {
-        User user = findUserByEmail(email);
-        tripService.cancelTrip(user.getId(), id);
-        return ResponseEntity.noContent().build();
-    }
+
 
     @DeleteMapping("/{id}/leave")
     @Operation(summary = "Leave a trip")
@@ -226,6 +218,38 @@ public class TripController {
             @PathVariable UUID inviteId) {
         User user = findUserByEmail(email);
         tripService.revokeInviteLink(user.getId(), id, inviteId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete a trip (creator only, no members)")
+    public ResponseEntity<Void> deleteTrip(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID id) {
+        User user = findUserByEmail(email);
+        tripService.deleteTrip(user.getId(), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/cancel/initiate")
+    @Operation(summary = "Initiate cancellation of a trip (creator only)")
+    public ResponseEntity<Void> initiateCancellation(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID id) {
+        User user = findUserByEmail(email);
+        tripService.initiateCancellation(user.getId(), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/cancel/vote")
+    @Operation(summary = "Submit a vote for trip cancellation")
+    public ResponseEntity<Void> submitCancellationVote(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID id,
+            @RequestBody java.util.Map<String, String> payload) {
+        User user = findUserByEmail(email);
+        String vote = payload.get("vote");
+        tripService.submitCancellationVote(user.getId(), id, vote);
         return ResponseEntity.noContent().build();
     }
 

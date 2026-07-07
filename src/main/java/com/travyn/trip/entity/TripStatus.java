@@ -6,5 +6,6 @@ public enum TripStatus {
     FULL,
     IN_PROGRESS,
     COMPLETED,
-    CANCELLED
+    CANCELLED,
+    CANCELLATION_PENDING
 }

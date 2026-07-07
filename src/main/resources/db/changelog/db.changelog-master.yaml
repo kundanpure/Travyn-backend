@@ -63,3 +63,5 @@ databaseChangeLog:
       file: db/changelog/031-create-destination-insights-table.yaml
   - include:
       file: db/changelog/032-create-trip-invite-tokens-table.yaml
+  - include:
+      file: db/changelog/033-create-trip-cancellation-votes.yaml

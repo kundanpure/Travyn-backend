@@ -23,6 +23,8 @@ import com.travyn.trip.repository.TripMemberRepository;
 import com.travyn.trip.repository.TripRepository;
 import com.travyn.trip.repository.TripReviewRepository;
 import com.travyn.trip.repository.TripInviteTokenRepository;
+import com.travyn.trip.repository.TripCancellationVoteRepository;
+import com.travyn.trip.repository.TripWaypointRepository;
 import com.travyn.profile.repository.ProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +54,8 @@ public class TripService {
     private final NotificationService notificationService;
     private final ProfileRepository profileRepository;
     private final TripInviteTokenRepository tripInviteTokenRepository;
+    private final TripCancellationVoteRepository tripCancellationVoteRepository;
+    private final TripWaypointRepository tripWaypointRepository;
 
     private static final String TRIP_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int TRIP_CODE_LENGTH = 8;
@@ -444,7 +448,6 @@ public class TripService {
                 }
             }
         }
-
         return mapToTripMemberDTO(member, user);
     }
 
@@ -984,5 +987,127 @@ public class TripService {
                 .expiresAt(invToken.getExpiresAt())
                 .createdAt(invToken.getCreatedAt())
                 .build();
+    }
+
+    @Transactional
+    public void deleteTrip(UUID userId, UUID tripId) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+
+        if (!trip.getCreatorId().equals(userId)) {
+            throw new TripAccessDeniedException("Only the trip creator can delete the trip");
+        }
+
+        int approvedCount = tripMemberRepository.countByTripIdAndMemberStatus(tripId, MemberStatus.APPROVED);
+        if (approvedCount > 1) { // 1 is the creator
+            throw new IllegalStateException("Cannot delete a trip with active members. Cancel it instead.");
+        }
+
+        tripCancellationVoteRepository.deleteByTripId(tripId);
+        tripInviteTokenRepository.deleteByTripId(tripId);
+        tripMemberRepository.deleteByTripId(tripId);
+        tripReviewRepository.deleteByTripId(tripId);
+        tripWaypointRepository.deleteByTripId(tripId);
+        
+        tripRepository.delete(trip);
+        log.info("User {} deleted trip {}", userId, tripId);
+    }
+
+    @Transactional
+    public void initiateCancellation(UUID userId, UUID tripId) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+
+        if (!trip.getCreatorId().equals(userId)) {
+            throw new TripAccessDeniedException("Only the trip creator can cancel the trip");
+        }
+
+        List<TripMember> approvedMembers = tripMemberRepository.findByTripIdAndMemberStatus(tripId, MemberStatus.APPROVED);
+        
+        if (approvedMembers.size() <= 1) {
+            // Only creator is here, cancel instantly
+            trip.setStatus(TripStatus.CANCELLED);
+            tripRepository.save(trip);
+            return;
+        }
+
+        trip.setStatus(TripStatus.CANCELLATION_PENDING);
+        tripRepository.save(trip);
+
+        for (TripMember m : approvedMembers) {
+            if (!m.getUserId().equals(userId)) {
+                TripCancellationVote vote = TripCancellationVote.builder()
+                        .trip(trip)
+                        .userId(m.getUserId())
+                        .vote(VoteStatus.PENDING)
+                        .build();
+                tripCancellationVoteRepository.save(vote);
+
+                notificationService.notifyUser(
+                        m.getUserId(),
+                        "The creator wants to cancel '" + trip.getTitle() + "'. Please vote to confirm.",
+                        NotificationType.CANCELLATION_VOTE,
+                        tripId
+                );
+            }
+        }
+    }
+
+    @Transactional
+    public void submitCancellationVote(UUID userId, UUID tripId, String voteStatusStr) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+                
+        if (trip.getStatus() != TripStatus.CANCELLATION_PENDING) {
+            throw new IllegalStateException("Trip is not pending cancellation");
+        }
+
+        TripCancellationVote vote = tripCancellationVoteRepository.findByTripIdAndUserId(tripId, userId)
+                .orElseThrow(() -> new TripAccessDeniedException("No pending vote found for this user"));
+
+        vote.setVote(VoteStatus.valueOf(voteStatusStr.toUpperCase()));
+        tripCancellationVoteRepository.save(vote);
+
+        List<TripCancellationVote> allVotes = tripCancellationVoteRepository.findByTripId(tripId);
+        boolean allVoted = allVotes.stream().noneMatch(v -> v.getVote() == VoteStatus.PENDING);
+
+        if (allVoted) {
+            long yesCount = allVotes.stream().filter(v -> v.getVote() == VoteStatus.YES).count();
+            if (yesCount > allVotes.size() / 2) {
+                // Majority YES -> Cancel Trip
+                trip.setStatus(TripStatus.CANCELLED);
+                tripRepository.save(trip);
+                
+                // Notify everyone
+                List<TripMember> approvedMembers = tripMemberRepository.findByTripIdAndMemberStatus(tripId, MemberStatus.APPROVED);
+                for (TripMember m : approvedMembers) {
+                    notificationService.notifyUser(
+                            m.getUserId(),
+                            "Trip '" + trip.getTitle() + "' has been officially cancelled.",
+                            NotificationType.TRIP_CANCELLED,
+                            tripId
+                    );
+                }
+            } else {
+                // Majority NO or Tie -> Revert to OPEN/FULL
+                int approvedCount = tripMemberRepository.countByTripIdAndMemberStatus(tripId, MemberStatus.APPROVED);
+                if (approvedCount >= trip.getMaxSize()) {
+                    trip.setStatus(TripStatus.FULL);
+                } else {
+                    trip.setStatus(TripStatus.OPEN);
+                }
+                tripRepository.save(trip);
+                
+                // Clear votes
+                tripCancellationVoteRepository.deleteByTripId(tripId);
+                
+                notificationService.notifyUser(
+                        trip.getCreatorId(),
+                        "The group voted NO. Cancellation of '" + trip.getTitle() + "' was rejected.",
+                        NotificationType.TRIP_CANCELLED, // using as general notification
+                        tripId
+                );
+            }
+        }
     }
 }

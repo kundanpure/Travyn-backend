@@ -1,0 +1,45 @@
+databaseChangeLog:
+  - changeSet:
+      id: 033-create-trip-cancellation-votes
+      author: travyn-ai
+      changes:
+        - createTable:
+            tableName: trip_cancellation_votes
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: trip_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_cancellation_trip
+                    references: trips(id)
+                    deleteCascade: true
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_cancellation_user
+                    references: users(id)
+                    deleteCascade: true
+              - column:
+                  name: vote
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
