@@ -999,8 +999,8 @@ public class TripService {
         }
 
         int approvedCount = tripMemberRepository.countByTripIdAndMemberStatus(tripId, MemberStatus.APPROVED);
-        if (approvedCount > 1) { // 1 is the creator
-            throw new IllegalStateException("Cannot delete a trip with active members. Cancel it instead.");
+        if (approvedCount > 1 && trip.getStatus() != TripStatus.CANCELLED) { // 1 is the creator
+            throw new TripAccessDeniedException("Cannot delete a trip with active members. Cancel it instead.");
         }
 
         tripCancellationVoteRepository.deleteByTripId(tripId);
