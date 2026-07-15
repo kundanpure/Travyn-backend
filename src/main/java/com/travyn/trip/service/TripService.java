@@ -56,6 +56,7 @@ public class TripService {
     private final TripInviteTokenRepository tripInviteTokenRepository;
     private final TripCancellationVoteRepository tripCancellationVoteRepository;
     private final TripWaypointRepository tripWaypointRepository;
+    private final com.travyn.chat.repository.ChatMessageRepository chatMessageRepository;
 
     private static final String TRIP_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int TRIP_CODE_LENGTH = 8;
@@ -302,6 +303,25 @@ public class TripService {
                             .ifPresent(m -> {
                                 dto.setMemberRole(m.getMemberRole().name());
                                 dto.setMemberStatus(m.getMemberStatus().name());
+                                
+                                // Fetch chat data
+                                org.springframework.data.domain.Page<com.travyn.chat.entity.ChatMessage> page = 
+                                    chatMessageRepository.findByTripIdOrderByCreatedAtDesc(trip.getId(), PageRequest.of(0, 1));
+                                
+                                if (page.hasContent()) {
+                                    com.travyn.chat.entity.ChatMessage latest = page.getContent().get(0);
+                                    dto.setLatestMessageContent(latest.getContent());
+                                    dto.setLatestMessageType(latest.getMessageType());
+                                    dto.setLatestMessageAt(latest.getCreatedAt());
+                                }
+                                
+                                long unreadCount = 0;
+                                if (m.getLastChatReadAt() != null) {
+                                    unreadCount = chatMessageRepository.countByTripIdAndCreatedAtAfter(trip.getId(), m.getLastChatReadAt());
+                                } else {
+                                    unreadCount = chatMessageRepository.countByTripId(trip.getId());
+                                }
+                                dto.setUnreadChatCount(unreadCount);
                             });
 
                     return dto;

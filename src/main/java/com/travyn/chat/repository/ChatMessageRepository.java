@@ -15,4 +15,6 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     Page<ChatMessage> findByTripIdOrderByCreatedAtDesc(UUID tripId, Pageable pageable);
 
     long countByTripIdAndCreatedAtAfter(UUID tripId, Instant after);
+
+    long countByTripId(UUID tripId);
 }

@@ -116,6 +116,15 @@ public class ChatService {
         messagingTemplate.convertAndSend("/topic/chat/" + tripId, dto);
     }
 
+    @Transactional
+    public void markChatAsRead(UUID userId, UUID tripId) {
+        com.travyn.trip.entity.TripMember member = tripMemberRepository.findByTripIdAndUserId(tripId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("User is not a member of this trip"));
+
+        member.setLastChatReadAt(java.time.Instant.now());
+        tripMemberRepository.save(member);
+    }
+
     private ChatMessageDTO mapToDTO(ChatMessage msg, Map<UUID, User> usersById) {
         User sender = usersById.get(msg.getSenderId());
         return mapToDTO(msg, sender);

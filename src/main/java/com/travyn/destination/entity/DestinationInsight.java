@@ -42,6 +42,12 @@ public class DestinationInsight {
     @Builder.Default
     private Integer upvotes = 0;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "insight_upvotes", joinColumns = @JoinColumn(name = "insight_id"))
+    @Column(name = "user_id")
+    @Builder.Default
+    private java.util.Set<UUID> upvotedBy = new java.util.HashSet<>();
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

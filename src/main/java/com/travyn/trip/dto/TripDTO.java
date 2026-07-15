@@ -46,4 +46,10 @@ public class TripDTO {
     // Added for /my-trips — the current user's role and status in this trip
     private String memberRole;
     private String memberStatus;
+
+    // Added for chat integration in messages
+    private long unreadChatCount;
+    private String latestMessageContent;
+    private com.travyn.chat.entity.MessageType latestMessageType;
+    private Instant latestMessageAt;
 }

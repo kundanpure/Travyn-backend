@@ -41,4 +41,7 @@ public class TripMember {
 
     @Column(name = "approved_by")
     private UUID approvedBy;
+
+    @Column(name = "last_chat_read_at")
+    private Instant lastChatReadAt;
 }

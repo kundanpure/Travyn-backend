@@ -18,5 +18,6 @@ public class DestinationInsightDTO {
     private InsightCategory category;
     private String content;
     private Integer upvotes;
+    private boolean isUpvotedByMe;
     private Instant createdAt;
 }

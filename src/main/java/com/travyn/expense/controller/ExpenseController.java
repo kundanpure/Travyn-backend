@@ -46,6 +46,18 @@ public class ExpenseController {
         return ResponseEntity.status(HttpStatus.CREATED).body(expense);
     }
 
+    @PutMapping("/{expenseId}")
+    @Operation(summary = "Update an existing expense")
+    public ResponseEntity<ExpenseDTO> updateExpense(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID tripId,
+            @PathVariable UUID expenseId,
+            @Valid @RequestBody CreateExpenseRequest request) {
+        User user = findUserByEmail(email);
+        ExpenseDTO expense = expenseService.updateExpense(user.getId(), tripId, expenseId, request);
+        return ResponseEntity.ok(expense);
+    }
+
     @DeleteMapping("/{expenseId}")
     @Operation(summary = "Delete an expense (payer or trip creator only)")
     public ResponseEntity<Void> deleteExpense(

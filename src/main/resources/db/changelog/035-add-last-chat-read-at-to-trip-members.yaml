@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 035-add-last-chat-read-at-to-trip-members
+      author: travyn
+      changes:
+        - addColumn:
+            tableName: trip_members
+            columns:
+              - column:
+                  name: last_chat_read_at
+                  type: TIMESTAMP

@@ -190,6 +190,114 @@ public class ExpenseService {
     }
 
     @Transactional
+    public ExpenseDTO updateExpense(UUID userId, UUID tripId, UUID expenseId, CreateExpenseRequest request) {
+        tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+        validateMembership(userId, tripId);
+
+        Expense expense = expenseRepository.findById(expenseId)
+                .orElseThrow(() -> new ExpenseNotFoundException("Expense not found"));
+
+        if (!expense.getTripId().equals(tripId)) {
+            throw new ExpenseAccessDeniedException("Expense does not belong to this trip");
+        }
+
+        if (!expense.getPaidBy().equals(userId)) {
+            boolean isCreator = tripRepository.findById(tripId)
+                    .map(t -> t.getCreatorId().equals(userId))
+                    .orElse(false);
+            if (!isCreator) {
+                throw new ExpenseAccessDeniedException("Only the payer or trip creator can edit this expense");
+            }
+        }
+
+        SplitType splitType = request.getSplitType() != null ? request.getSplitType() : SplitType.EQUAL;
+
+        expense.setTitle(request.getTitle().trim());
+        expense.setAmount(request.getAmount());
+        expense.setCategory(request.getCategory() != null ? request.getCategory() : ExpenseCategory.OTHER);
+        expense.setSplitType(splitType);
+        expense.setDate(request.getDate());
+        expense.setNotes(request.getNotes());
+
+        expense = expenseRepository.save(expense);
+
+        // Delete old splits
+        splitRepository.deleteByExpenseId(expenseId);
+
+        // Determine who to split with
+        List<UUID> splitUserIds;
+        if (request.getSplitWith() != null && !request.getSplitWith().isEmpty()) {
+            splitUserIds = request.getSplitWith();
+        } else {
+            splitUserIds = tripMemberRepository.findByTripId(tripId).stream()
+                    .filter(m -> m.getMemberStatus() == MemberStatus.APPROVED)
+                    .map(TripMember::getUserId)
+                    .toList();
+        }
+
+        // Create new splits
+        List<ExpenseSplit> splits = new ArrayList<>();
+        if (splitType == SplitType.CUSTOM && request.getCustomAmounts() != null) {
+            for (Map.Entry<UUID, BigDecimal> entry : request.getCustomAmounts().entrySet()) {
+                splits.add(ExpenseSplit.builder()
+                        .expenseId(expense.getId())
+                        .userId(entry.getKey())
+                        .amount(entry.getValue())
+                        .build());
+            }
+        } else {
+            BigDecimal perPerson = request.getAmount()
+                    .divide(BigDecimal.valueOf(splitUserIds.size()), 2, RoundingMode.HALF_UP);
+            BigDecimal remainder = request.getAmount()
+                    .subtract(perPerson.multiply(BigDecimal.valueOf(splitUserIds.size())));
+
+            for (int i = 0; i < splitUserIds.size(); i++) {
+                BigDecimal splitAmount = i == 0 ? perPerson.add(remainder) : perPerson;
+                splits.add(ExpenseSplit.builder()
+                        .expenseId(expense.getId())
+                        .userId(splitUserIds.get(i))
+                        .amount(splitAmount)
+                        .build());
+            }
+        }
+
+        splits = splitRepository.saveAll(splits);
+        log.info("Expense '{}' updated in trip {} by user {}", expense.getTitle(), tripId, userId);
+
+        User payer = userRepository.findById(expense.getPaidBy()).orElse(null);
+        Map<UUID, User> usersById = userRepository.findAllById(
+                splits.stream().map(ExpenseSplit::getUserId).toList()
+        ).stream().collect(Collectors.toMap(User::getId, u -> u));
+
+        List<ExpenseDTO.SplitDTO> splitDTOs = splits.stream().map(s -> {
+            User u = usersById.get(s.getUserId());
+            return ExpenseDTO.SplitDTO.builder()
+                    .id(s.getId())
+                    .userId(s.getUserId())
+                    .userName(u != null ? u.getFirstName() + " " + u.getLastName() : null)
+                    .amount(s.getAmount())
+                    .build();
+        }).toList();
+
+        return ExpenseDTO.builder()
+                .id(expense.getId())
+                .tripId(expense.getTripId())
+                .paidBy(expense.getPaidBy())
+                .paidByName(payer != null ? payer.getFirstName() + " " + payer.getLastName() : null)
+                .title(expense.getTitle())
+                .amount(expense.getAmount())
+                .currency(expense.getCurrency())
+                .category(expense.getCategory())
+                .splitType(expense.getSplitType())
+                .date(expense.getDate())
+                .notes(expense.getNotes())
+                .splits(splitDTOs)
+                .createdAt(expense.getCreatedAt())
+                .build();
+    }
+
+    @Transactional
     public void deleteExpense(UUID userId, UUID tripId, UUID expenseId) {
         tripRepository.findById(tripId)
                 .orElseThrow(() -> new TripNotFoundException("Trip not found"));

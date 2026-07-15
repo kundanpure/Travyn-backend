@@ -65,3 +65,7 @@ databaseChangeLog:
       file: db/changelog/032-create-trip-invite-tokens-table.yaml
   - include:
       file: db/changelog/033-create-trip-cancellation-votes.yaml
+  - include:
+      file: db/changelog/034-create-insight-upvotes-table.yaml
+  - include:
+      file: db/changelog/035-add-last-chat-read-at-to-trip-members.yaml

@@ -45,6 +45,16 @@ public class ChatController {
         return ResponseEntity.ok(chatService.sendMessage(user.getId(), tripId, request));
     }
 
+    @PostMapping("/read")
+    @Operation(summary = "Mark trip chat as read up to the current time")
+    public ResponseEntity<Void> markAsRead(
+            @PathVariable UUID tripId,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails userDetails) {
+        User user = findUserByEmail(userDetails.getUsername());
+        chatService.markChatAsRead(user.getId(), tripId);
+        return ResponseEntity.ok().build();
+    }
+
     private User findUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));

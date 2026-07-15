@@ -19,8 +19,10 @@ public class DestinationInsightController {
     private final DestinationInsightService insightService;
 
     @GetMapping("/{destination}/insights")
-    public ResponseEntity<List<DestinationInsightDTO>> getInsights(@PathVariable String destination) {
-        return ResponseEntity.ok(insightService.getInsightsForDestination(destination));
+    public ResponseEntity<List<DestinationInsightDTO>> getInsights(
+            @AuthenticationPrincipal String userEmail,
+            @PathVariable String destination) {
+        return ResponseEntity.ok(insightService.getInsightsForDestination(destination, userEmail));
     }
 
     @PostMapping("/{destination}/insights")
@@ -31,9 +33,19 @@ public class DestinationInsightController {
         return ResponseEntity.ok(insightService.postInsight(userEmail, destination, request));
     }
 
+    @PutMapping("/insights/{insightId}")
+    public ResponseEntity<DestinationInsightDTO> editInsight(
+            @AuthenticationPrincipal String userEmail,
+            @PathVariable String insightId,
+            @Valid @RequestBody DestinationInsightRequest request) {
+        return ResponseEntity.ok(insightService.editInsight(insightId, userEmail, request));
+    }
+
     @PostMapping("/insights/{insightId}/upvote")
-    public ResponseEntity<Void> upvoteInsight(@PathVariable String insightId) {
-        insightService.upvoteInsight(insightId);
+    public ResponseEntity<Void> upvoteInsight(
+            @AuthenticationPrincipal String userEmail,
+            @PathVariable String insightId) {
+        insightService.upvoteInsight(insightId, userEmail);
         return ResponseEntity.ok().build();
     }
 }

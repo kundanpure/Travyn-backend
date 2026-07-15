@@ -1,0 +1,36 @@
+databaseChangeLog:
+  - changeSet:
+      id: 034-create-insight-upvotes-table
+      author: travyn
+      changes:
+        - createTable:
+            tableName: insight_upvotes
+            columns:
+              - column:
+                  name: insight_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: insight_upvotes
+            columnNames: insight_id, user_id
+            constraintName: pk_insight_upvotes
+        - addForeignKeyConstraint:
+            baseTableName: insight_upvotes
+            baseColumnNames: insight_id
+            referencedTableName: destination_insights
+            referencedColumnNames: id
+            constraintName: fk_insight_upvotes_insight
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: insight_upvotes
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_insight_upvotes_user
+            onDelete: CASCADE
