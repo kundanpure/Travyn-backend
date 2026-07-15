@@ -48,10 +48,8 @@ public class ItineraryService {
 
         List<ItineraryDay> days = dayRepository.findByTripIdOrderByDateAsc(tripId);
 
-        // Auto-scaffold: if no days exist, create one for each date in the trip range
-        if (days.isEmpty()) {
-            days = scaffoldDays(trip);
-        }
+        // Auto-scaffold: fill in any missing dates within the trip range
+        days = scaffoldMissingDays(trip, days);
 
         // Build a map of items grouped by dayId
         List<ItineraryItem> allItems = itemRepository.findByTripId(tripId);
@@ -105,27 +103,42 @@ public class ItineraryService {
     }
 
     /**
-     * Auto-create ItineraryDay records for every date from trip.startDate to trip.endDate.
+     * Fill in any missing ItineraryDay records for dates in the trip range.
+     * Preserves existing days and their activities; only creates entries for missing dates.
      */
-    private List<ItineraryDay> scaffoldDays(Trip trip) {
-        List<ItineraryDay> days = new ArrayList<>();
+    private List<ItineraryDay> scaffoldMissingDays(Trip trip, List<ItineraryDay> existingDays) {
+        Set<LocalDate> existingDates = existingDays.stream()
+                .map(ItineraryDay::getDate)
+                .collect(Collectors.toSet());
+
+        List<ItineraryDay> newDays = new ArrayList<>();
         LocalDate current = trip.getStartDate();
         int dayNum = 1;
 
         while (!current.isAfter(trip.getEndDate())) {
-            ItineraryDay day = ItineraryDay.builder()
-                    .tripId(trip.getId())
-                    .date(current)
-                    .title("Day " + dayNum + " — " + current.toString())
-                    .build();
-            days.add(day);
+            if (!existingDates.contains(current)) {
+                ItineraryDay day = ItineraryDay.builder()
+                        .tripId(trip.getId())
+                        .date(current)
+                        .title("Day " + dayNum + " — " + current.toString())
+                        .build();
+                newDays.add(day);
+            }
             current = current.plusDays(1);
             dayNum++;
         }
 
-        days = dayRepository.saveAll(days);
-        log.info("Auto-scaffolded {} itinerary days for trip {}", days.size(), trip.getTripCode());
-        return days;
+        if (!newDays.isEmpty()) {
+            newDays = dayRepository.saveAll(newDays);
+            log.info("Auto-scaffolded {} missing itinerary days for trip {}", newDays.size(), trip.getTripCode());
+            // Merge and re-sort by date
+            List<ItineraryDay> allDays = new ArrayList<>(existingDays);
+            allDays.addAll(newDays);
+            allDays.sort(Comparator.comparing(ItineraryDay::getDate));
+            return allDays;
+        }
+
+        return existingDays;
     }
 
     @Transactional
