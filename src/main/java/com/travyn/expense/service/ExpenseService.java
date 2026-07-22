@@ -26,6 +26,13 @@ import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.travyn.chat.dto.SendMessageRequest;
+import com.travyn.chat.service.ChatService;
+import com.travyn.expense.entity.*;
+import com.travyn.expense.repository.TripSettlementRepository;
+import com.travyn.notification.entity.NotificationType;
+import com.travyn.notification.service.NotificationService;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -36,6 +43,9 @@ public class ExpenseService {
     private final TripRepository tripRepository;
     private final TripMemberRepository tripMemberRepository;
     private final UserRepository userRepository;
+    private final TripSettlementRepository settlementRepository;
+    private final NotificationService notificationService;
+    private final ChatService chatService;
 
     @Transactional(readOnly = true)
     public List<ExpenseDTO> getExpenses(UUID userId, UUID tripId) {
@@ -367,14 +377,24 @@ public class ExpenseService {
         for (Expense expense : expenses) {
             paidByUser.merge(expense.getPaidBy(), expense.getAmount(), BigDecimal::add);
         }
-
         for (ExpenseSplit split : allSplits) {
             owedByUser.merge(split.getUserId(), split.getAmount(), BigDecimal::add);
+        }
+
+        // Incorporate confirmed settlements
+        List<TripSettlement> confirmedSettlements = settlementRepository.findByTripIdAndStatus(tripId, SettlementStatus.CONFIRMED);
+        for (TripSettlement settlement : confirmedSettlements) {
+            paidByUser.merge(settlement.getFromUserId(), settlement.getAmount(), BigDecimal::add);
+            paidByUser.merge(settlement.getToUserId(), settlement.getAmount().negate(), BigDecimal::add);
         }
 
         Set<UUID> allUserIds = new HashSet<>();
         allUserIds.addAll(paidByUser.keySet());
         allUserIds.addAll(owedByUser.keySet());
+        confirmedSettlements.forEach(s -> {
+            allUserIds.add(s.getFromUserId());
+            allUserIds.add(s.getToUserId());
+        });
 
         Map<UUID, User> usersById = userRepository.findAllById(allUserIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
@@ -398,6 +418,154 @@ public class ExpenseService {
                 .expenseCount(expenses.size())
                 .categoryBreakdown(categoryBreakdown)
                 .memberSummaries(memberSummaries)
+                .build();
+    }
+
+    @Transactional
+    public TripSettlementDTO initiateSettlement(UUID userId, UUID tripId, CreateSettlementRequest request) {
+        tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+        validateMembership(userId, tripId);
+        validateMembership(request.getToUserId(), tripId);
+
+        SettlementStatus initialStatus = request.isDirectReceipt() ? SettlementStatus.CONFIRMED : SettlementStatus.PENDING;
+
+        TripSettlement settlement = TripSettlement.builder()
+                .tripId(tripId)
+                .fromUserId(userId)
+                .toUserId(request.getToUserId())
+                .amount(request.getAmount())
+                .paymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : PaymentMethod.CASH)
+                .status(initialStatus)
+                .notes(request.getNotes())
+                .build();
+
+        settlement = settlementRepository.save(settlement);
+
+        User sender = userRepository.findById(userId).orElse(null);
+        User receiver = userRepository.findById(request.getToUserId()).orElse(null);
+        String senderName = sender != null ? sender.getFirstName() + " " + sender.getLastName() : "Member";
+        String receiverName = receiver != null ? receiver.getFirstName() + " " + receiver.getLastName() : "Member";
+
+        if (initialStatus == SettlementStatus.PENDING) {
+            notificationService.notifyUser(
+                    request.getToUserId(),
+                    senderName + " marked ₹" + request.getAmount() + " as paid to you via " + settlement.getPaymentMethod() + ". Tap to confirm.",
+                    NotificationType.SETTLEMENT_REQUEST,
+                    tripId
+            );
+            
+            // Post automated chat message to Trip Chat
+            SendMessageRequest msgReq = new SendMessageRequest();
+            msgReq.setContent("💸 " + senderName + " recorded a payment of ₹" + request.getAmount() + " to " + receiverName + " via " + settlement.getPaymentMethod() + " (Pending Confirmation).");
+            chatService.sendMessage(userId, tripId, msgReq);
+        } else {
+            SendMessageRequest msgReq = new SendMessageRequest();
+            msgReq.setContent("✅ " + senderName + " settled ₹" + request.getAmount() + " with " + receiverName + " via " + settlement.getPaymentMethod() + ".");
+            chatService.sendMessage(userId, tripId, msgReq);
+        }
+
+        return mapSettlementToDTO(settlement, senderName, receiverName);
+    }
+
+    @Transactional
+    public TripSettlementDTO confirmSettlement(UUID userId, UUID tripId, UUID settlementId) {
+        TripSettlement settlement = settlementRepository.findById(settlementId)
+                .orElseThrow(() -> new ExpenseNotFoundException("Settlement record not found"));
+
+        if (!settlement.getToUserId().equals(userId)) {
+            throw new ExpenseAccessDeniedException("Only the payment recipient can confirm this settlement.");
+        }
+
+        settlement.setStatus(SettlementStatus.CONFIRMED);
+        settlement = settlementRepository.save(settlement);
+
+        User sender = userRepository.findById(settlement.getFromUserId()).orElse(null);
+        User receiver = userRepository.findById(settlement.getToUserId()).orElse(null);
+        String senderName = sender != null ? sender.getFirstName() + " " + sender.getLastName() : "Member";
+        String receiverName = receiver != null ? receiver.getFirstName() + " " + receiver.getLastName() : "Member";
+
+        notificationService.notifyUser(
+                settlement.getFromUserId(),
+                receiverName + " confirmed receiving your payment of ₹" + settlement.getAmount() + ".",
+                NotificationType.SETTLEMENT_CONFIRMED,
+                tripId
+        );
+
+        SendMessageRequest msgReq = new SendMessageRequest();
+        msgReq.setContent("✅ " + receiverName + " confirmed receiving ₹" + settlement.getAmount() + " payment from " + senderName + ".");
+        chatService.sendMessage(userId, tripId, msgReq);
+
+        return mapSettlementToDTO(settlement, senderName, receiverName);
+    }
+
+    @Transactional
+    public TripSettlementDTO rejectSettlement(UUID userId, UUID tripId, UUID settlementId, String reason) {
+        TripSettlement settlement = settlementRepository.findById(settlementId)
+                .orElseThrow(() -> new ExpenseNotFoundException("Settlement record not found"));
+
+        if (!settlement.getToUserId().equals(userId)) {
+            throw new ExpenseAccessDeniedException("Only the payment recipient can reject this settlement.");
+        }
+
+        settlement.setStatus(SettlementStatus.REJECTED);
+        settlement.setRejectionReason(reason);
+        settlement = settlementRepository.save(settlement);
+
+        User sender = userRepository.findById(settlement.getFromUserId()).orElse(null);
+        User receiver = userRepository.findById(settlement.getToUserId()).orElse(null);
+        String senderName = sender != null ? sender.getFirstName() + " " + sender.getLastName() : "Member";
+        String receiverName = receiver != null ? receiver.getFirstName() + " " + receiver.getLastName() : "Member";
+
+        notificationService.notifyUser(
+                settlement.getFromUserId(),
+                receiverName + " declined your settlement request of ₹" + settlement.getAmount() + (reason != null ? ": " + reason : ""),
+                NotificationType.SETTLEMENT_REQUEST,
+                tripId
+        );
+
+        return mapSettlementToDTO(settlement, senderName, receiverName);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TripSettlementDTO> getTripSettlements(UUID userId, UUID tripId) {
+        validateMembership(userId, tripId);
+        List<TripSettlement> settlements = settlementRepository.findByTripId(tripId);
+        if (settlements.isEmpty()) return List.of();
+
+        Set<UUID> userIds = new HashSet<>();
+        settlements.forEach(s -> {
+            userIds.add(s.getFromUserId());
+            userIds.add(s.getToUserId());
+        });
+
+        Map<UUID, User> usersById = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+
+        return settlements.stream().map(s -> {
+            User sender = usersById.get(s.getFromUserId());
+            User receiver = usersById.get(s.getToUserId());
+            String sName = sender != null ? sender.getFirstName() + " " + sender.getLastName() : null;
+            String rName = receiver != null ? receiver.getFirstName() + " " + receiver.getLastName() : null;
+            return mapSettlementToDTO(s, sName, rName);
+        }).sorted(Comparator.comparing(TripSettlementDTO::getCreatedAt).reversed()).toList();
+    }
+
+    private TripSettlementDTO mapSettlementToDTO(TripSettlement s, String fromUserName, String toUserName) {
+        return TripSettlementDTO.builder()
+                .id(s.getId())
+                .tripId(s.getTripId())
+                .fromUserId(s.getFromUserId())
+                .fromUserName(fromUserName)
+                .toUserId(s.getToUserId())
+                .toUserName(toUserName)
+                .amount(s.getAmount())
+                .paymentMethod(s.getPaymentMethod())
+                .status(s.getStatus())
+                .notes(s.getNotes())
+                .rejectionReason(s.getRejectionReason())
+                .createdAt(s.getCreatedAt())
+                .updatedAt(s.getUpdatedAt())
                 .build();
     }
 
@@ -469,9 +637,8 @@ public class ExpenseService {
         boolean isMember = tripMemberRepository.findByTripIdAndUserId(tripId, userId)
                 .filter(m -> m.getMemberStatus() == MemberStatus.APPROVED)
                 .isPresent();
-
         if (!isMember) {
-            throw new ExpenseAccessDeniedException("You must be an approved member of this trip");
+            throw new ExpenseAccessDeniedException("You are not an approved member of this trip");
         }
     }
 }

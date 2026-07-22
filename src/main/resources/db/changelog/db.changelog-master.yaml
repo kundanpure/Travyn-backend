@@ -69,3 +69,5 @@ databaseChangeLog:
       file: db/changelog/034-create-insight-upvotes-table.yaml
   - include:
       file: db/changelog/035-add-last-chat-read-at-to-trip-members.yaml
+  - include:
+      file: db/changelog/036-create-trip-settlements-table.yaml

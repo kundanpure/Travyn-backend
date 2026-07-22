@@ -87,6 +87,47 @@ public class ExpenseController {
         return ResponseEntity.ok(expenseService.getSettlements(user.getId(), tripId));
     }
 
+    @PostMapping("/settlements/pay")
+    @Operation(summary = "Record a settlement payment")
+    public ResponseEntity<TripSettlementDTO> initiateSettlement(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID tripId,
+            @Valid @RequestBody CreateSettlementRequest request) {
+        User user = findUserByEmail(email);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(expenseService.initiateSettlement(user.getId(), tripId, request));
+    }
+
+    @PostMapping("/settlements/{settlementId}/confirm")
+    @Operation(summary = "Confirm receiving a settlement payment")
+    public ResponseEntity<TripSettlementDTO> confirmSettlement(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID tripId,
+            @PathVariable UUID settlementId) {
+        User user = findUserByEmail(email);
+        return ResponseEntity.ok(expenseService.confirmSettlement(user.getId(), tripId, settlementId));
+    }
+
+    @PostMapping("/settlements/{settlementId}/reject")
+    @Operation(summary = "Reject/decline a settlement payment")
+    public ResponseEntity<TripSettlementDTO> rejectSettlement(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID tripId,
+            @PathVariable UUID settlementId,
+            @RequestParam(required = false) String reason) {
+        User user = findUserByEmail(email);
+        return ResponseEntity.ok(expenseService.rejectSettlement(user.getId(), tripId, settlementId, reason));
+    }
+
+    @GetMapping("/settlements/history")
+    @Operation(summary = "Get history of all recorded settlements for a trip")
+    public ResponseEntity<List<TripSettlementDTO>> getTripSettlements(
+            @AuthenticationPrincipal String email,
+            @PathVariable UUID tripId) {
+        User user = findUserByEmail(email);
+        return ResponseEntity.ok(expenseService.getTripSettlements(user.getId(), tripId));
+    }
+
     private User findUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
